@@ -1,0 +1,29 @@
+{
+  "name": "sisyphus-youtube-search",
+  "version": "1.0.0",
+  "description": "Premium client-side YouTube search library using InnerTube API patterns. No API key required.",
+  "main": "src/index.js",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sisyphus-labs/youtube-search"
+  },
+  "bugs": {
+    "url": "https://github.com/sisyphus-labs/youtube-search/issues"
+  },
+  "homepage": "https://github.com/sisyphus-labs/youtube-search#readme",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "youtube",
+    "search",
+    "innertube",
+    "client-side",
+    "no-api-key",
+    "javascript",
+    "browser"
+  ],
+  "author": "YouTube Search Contributors",
+  "license": "MIT"
+}
