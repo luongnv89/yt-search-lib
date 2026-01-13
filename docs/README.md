@@ -140,8 +140,8 @@ console.log(results);
 
 - **General questions** → [Support & Help](./community/support.md)
 - **Something broken** → [Troubleshooting](./troubleshooting/README.md)
-- **Want to report a bug** → [GitHub Issues](https://github.com/luongnv89/youtube-search/issues)
-- **Have a feature idea** → [GitHub Discussions](https://github.com/luongnv89/youtube-search/discussions)
+- **Want to report a bug** → [GitHub Issues](https://github.com/luongnv89/yt-search-lib/issues)
+- **Have a feature idea** → [GitHub Discussions](https://github.com/luongnv89/yt-search-lib/discussions)
 
 ---
 

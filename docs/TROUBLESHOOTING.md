@@ -56,4 +56,4 @@ const client = new YouTubeClient({
 
 ---
 
-If you encounter an issue not listed here, please [open an issue](https://github.com/sisyphus-labs/youtube-search/issues) on GitHub.
+If you encounter an issue not listed here, please [open an issue](https://github.com/sisyphus-labs/yt-search-lib/issues) on GitHub.

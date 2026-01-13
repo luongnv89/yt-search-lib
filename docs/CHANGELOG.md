@@ -23,4 +23,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[1.0.0]: https://github.com/sisyphus-labs/youtube-search/releases/tag/v1.0.0
+[1.0.0]: https://github.com/sisyphus-labs/yt-search-lib/releases/tag/v1.0.0

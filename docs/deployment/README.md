@@ -213,4 +213,4 @@ For more help, see [Troubleshooting Guide](../troubleshooting/README.md)
 
 **← [Back to Documentation](../README.md)**
 
-Last Updated: January 2024 | [Report Issue](https://github.com/luongnv89/youtube-search/issues)
+Last Updated: January 2024 | [Report Issue](https://github.com/luongnv89/yt-search-lib/issues)

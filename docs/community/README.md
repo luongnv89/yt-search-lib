@@ -21,8 +21,8 @@ We welcome contributions from the community! Before contributing, please:
 ## 💬 Getting Help
 
 - **Questions?** → [Support Guide](./support.md)
-- **Found a bug?** → [GitHub Issues](https://github.com/luongnv89/youtube-search/issues)
-- **Have an idea?** → [GitHub Discussions](https://github.com/luongnv89/youtube-search/discussions)
+- **Found a bug?** → [GitHub Issues](https://github.com/luongnv89/yt-search-lib/issues)
+- **Have an idea?** → [GitHub Discussions](https://github.com/luongnv89/yt-search-lib/discussions)
 
 ## 📜 Our Community Standards
 

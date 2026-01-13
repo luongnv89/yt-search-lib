@@ -27,7 +27,7 @@ Once published to npm, the library can be used directly in the browser via CDNs 
 Include the library in your HTML using a script tag with `type="module"`:
 ```html
 <script type="module">
-  import YouTubeClient from 'https://unpkg.com/sisyphus-youtube-search@1.0.0/src/index.js';
+  import YouTubeClient from 'https://unpkg.com/sisyphus-yt-search-lib@1.0.0/src/index.js';
   
   const client = new YouTubeClient({ proxyUrl: 'YOUR_PROXY_URL' });
   // ... use client
@@ -37,7 +37,7 @@ Include the library in your HTML using a script tag with `type="module"`:
 ### jsDelivr
 ```html
 <script type="module">
-  import YouTubeClient from 'https://cdn.jsdelivr.net/npm/sisyphus-youtube-search@1.0.0/src/index.js';
+  import YouTubeClient from 'https://cdn.jsdelivr.net/npm/sisyphus-yt-search-lib@1.0.0/src/index.js';
   // ... use client
 </script>
 ```
@@ -51,7 +51,7 @@ The project includes an `index.html` file that showcases a premium search interf
 3.  Under **Build and deployment**, select **Deploy from a branch**.
 4.  Choose the `main` (or `master`) branch and the root directory `/`.
 5.  Click **Save**.
-6.  Your demo will be available at `https://<your-username>.github.io/youtube-search/`.
+6.  Your demo will be available at `https://<your-username>.github.io/yt-search-lib/`.
 
 ---
 

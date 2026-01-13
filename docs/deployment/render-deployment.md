@@ -17,7 +17,7 @@ Before you start, you'll need:
 
 1. **GitHub Account** - Push code to a GitHub repository
 2. **Render Account** - Sign up at [render.com](https://render.com)
-3. **YouTube Search Repository** - Your fork/copy of the youtube-search repository
+3. **YouTube Search Repository** - Your fork/copy of the yt-search-lib repository
 
 ## Step 1: Prepare Your Repository
 
@@ -26,7 +26,7 @@ Before you start, you'll need:
 The proxy-server.js file should be in the root directory of your repository:
 
 ```
-youtube-search/
+yt-search-lib/
 ├── proxy-server.js          ← This file
 ├── package.json
 ├── src/
@@ -66,7 +66,7 @@ services:
 
 Save this in the root directory:
 ```
-youtube-search/
+yt-search-lib/
 ├── render.yaml              ← Add this file
 ├── proxy-server.js
 ├── package.json
@@ -95,7 +95,7 @@ git push origin main
 
 1. Select **"Build and deploy from a Git repository"**
 2. Click **"Connect account"** if you haven't authorized Render with GitHub
-3. Search for your `youtube-search` repository
+3. Search for your `yt-search-lib` repository
 4. Select it and click **"Connect"**
 
 ### 2.3 Configure the Web Service
@@ -424,14 +424,14 @@ Unfortunately, Render's free tier doesn't have built-in alerts, but you can:
 
 - **Render Docs**: https://render.com/docs
 - **Render Community**: https://render.com/community
-- **GitHub Issues**: Report deployment issues on the youtube-search repository
+- **GitHub Issues**: Report deployment issues on the yt-search-lib repository
 
 ## Example Repository Structure
 
 For reference, your repository should look like this:
 
 ```
-youtube-search/
+yt-search-lib/
 ├── render.yaml                    # Render configuration
 ├── proxy-server.js                # Proxy server code
 ├── integration-with-proxy.test.js # Tests

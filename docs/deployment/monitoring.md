@@ -44,7 +44,7 @@ Use this checklist to ensure everything is set up correctly before and after dep
 - [ ] Click "New +" button
 - [ ] Select "Web Service"
 - [ ] Select "Build and deploy from a Git repository"
-- [ ] Find and select `youtube-search` repository
+- [ ] Find and select `yt-search-lib` repository
 - [ ] Click "Connect"
 
 ### Step 3: Configure Service

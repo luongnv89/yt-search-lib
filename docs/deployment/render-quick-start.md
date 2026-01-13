@@ -17,7 +17,7 @@ This is a condensed version for quick deployment. See [RENDER_DEPLOYMENT.md](./R
 3. Click **"Dashboard"**
 4. Click **"New +"** → **"Web Service"**
 5. Click **"Connect account"** and authorize GitHub
-6. Select your `youtube-search` repository
+6. Select your `yt-search-lib` repository
 7. Click **"Connect"**
 
 ### Step 2: Configure Service

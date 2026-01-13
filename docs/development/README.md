@@ -14,8 +14,8 @@ Learn how to contribute to the YouTube Search Library and set up your developmen
 
 1. **Fork and clone** the repository:
 ```bash
-git clone https://github.com/YOUR-USERNAME/youtube-search.git
-cd youtube-search
+git clone https://github.com/YOUR-USERNAME/yt-search-lib.git
+cd yt-search-lib
 ```
 
 2. **Install dependencies**:
@@ -39,8 +39,8 @@ npm run test
 
 - Read [Code of Conduct](../community/code-of-conduct.md)
 - Check [Contributing Guide](./contributing.md)
-- Look at existing [GitHub Issues](https://github.com/luongnv89/youtube-search/issues)
-- Check [GitHub Discussions](https://github.com/luongnv89/youtube-search/discussions)
+- Look at existing [GitHub Issues](https://github.com/luongnv89/yt-search-lib/issues)
+- Check [GitHub Discussions](https://github.com/luongnv89/yt-search-lib/discussions)
 
 ### Making Changes
 
@@ -104,7 +104,7 @@ npm run format
 ## 📦 Project Structure
 
 ```
-youtube-search/
+yt-search-lib/
 ├── src/
 │   ├── index.js          # Main export
 │   ├── lib/
@@ -159,8 +159,8 @@ youtube-search/
 
 - **Setup issues?** → See [Setup Guide](./setup.md)
 - **Testing help?** → See [Testing Guide](./testing.md)
-- **Code questions?** → Open [GitHub Discussion](https://github.com/luongnv89/youtube-search/discussions)
-- **Found a bug?** → Create [GitHub Issue](https://github.com/luongnv89/youtube-search/issues)
+- **Code questions?** → Open [GitHub Discussion](https://github.com/luongnv89/yt-search-lib/discussions)
+- **Found a bug?** → Create [GitHub Issue](https://github.com/luongnv89/yt-search-lib/issues)
 
 ---
 

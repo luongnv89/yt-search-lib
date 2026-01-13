@@ -6,8 +6,8 @@ This guide provides detailed instructions for setting up and developing the YouT
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/youtube-search.git
-   cd youtube-search
+   git clone https://github.com/yourusername/yt-search-lib.git
+   cd yt-search-lib
    ```
 
 2. **Run a Local Server**:

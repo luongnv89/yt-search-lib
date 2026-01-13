@@ -7,9 +7,9 @@ Multiple ways to get help with the YouTube Search Library.
 ### GitHub Issues
 **For bug reports and technical issues**
 
-- [Report a Bug](https://github.com/luongnv89/youtube-search/issues/new?template=bug_report.md)
-- [Request a Feature](https://github.com/luongnv89/youtube-search/issues/new?template=feature_request.md)
-- [Browse Open Issues](https://github.com/luongnv89/youtube-search/issues)
+- [Report a Bug](https://github.com/luongnv89/yt-search-lib/issues/new?template=bug_report.md)
+- [Request a Feature](https://github.com/luongnv89/yt-search-lib/issues/new?template=feature_request.md)
+- [Browse Open Issues](https://github.com/luongnv89/yt-search-lib/issues)
 
 **How to report a good bug:**
 - Clear title describing the issue
@@ -21,9 +21,9 @@ Multiple ways to get help with the YouTube Search Library.
 ### GitHub Discussions
 **For questions and discussions**
 
-- [Ask a Question](https://github.com/luongnv89/youtube-search/discussions/new?category=q-a)
-- [Share Ideas](https://github.com/luongnv89/youtube-search/discussions/new?category=ideas)
-- [Show & Tell](https://github.com/luongnv89/youtube-search/discussions/new?category=show-and-tell)
+- [Ask a Question](https://github.com/luongnv89/yt-search-lib/discussions/new?category=q-a)
+- [Share Ideas](https://github.com/luongnv89/yt-search-lib/discussions/new?category=ideas)
+- [Show & Tell](https://github.com/luongnv89/yt-search-lib/discussions/new?category=show-and-tell)
 
 ### Documentation
 **For usage questions**
@@ -96,7 +96,7 @@ Include:
 
 ### Feature Request Process
 
-1. Create [Feature Request Issue](https://github.com/luongnv89/youtube-search/issues/new?template=feature_request.md)
+1. Create [Feature Request Issue](https://github.com/luongnv89/yt-search-lib/issues/new?template=feature_request.md)
 2. Community discusses
 3. Maintainers evaluate
 4. Implement if approved

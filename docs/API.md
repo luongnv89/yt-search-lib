@@ -7,7 +7,7 @@ The `YouTubeClient` class is the primary interface for the library.
 ### Constructor
 
 ```javascript
-import YouTubeClient from 'youtube-search';
+import YouTubeClient from 'yt-search-lib';
 
 const client = new YouTubeClient(options);
 ```
