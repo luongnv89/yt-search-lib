@@ -10,11 +10,7 @@ Currently, only the latest version of YouTube Search is supported with security 
 
 ## Reporting a Vulnerability
 
-We take the security of YouTube Search seriously. If you believe you have found a security vulnerability, please do not open a public issue. Instead, please report it to us by following these steps:
-
-1. Send an email to [security@example.com](mailto:security@example.com) (Please replace with actual security contact if available).
-2. Include a description of the vulnerability, steps to reproduce it, and the potential impact.
-3. We will acknowledge your report within 48 hours and provide a timeline for a fix.
+We take the security of YouTube Search seriously. If you believe you have found a security vulnerability, please do not open a public issue. Report it privately via the channel in the repository's [SECURITY.md](../../SECURITY.md) (GitHub Security Advisories).
 
 ### What to expect
 
