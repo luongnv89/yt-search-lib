@@ -35,6 +35,7 @@ const { LRUCache } = await import('./src/lib/cache.js');
 const { Transport } = await import('./src/lib/transport.js');
 const { parseSearchResults } = await import('./src/lib/parser.js');
 const YouTubeClient = (await import('./src/index.js')).default;
+const { isAllowedUrl } = await import('./proxy-allowlist.js');
 
 // ============================================
 // LRUCache Tests
@@ -854,5 +855,51 @@ describe('Edge Cases', () => {
       const unicodeQuery = 'テスト 🧪 🚀 ñ';
       assert.ok(unicodeQuery.length > 0);
     });
+  });
+});
+
+// ============================================
+// Proxy hostname allowlist (F-BUG-001)
+// ============================================
+
+describe('isAllowedUrl (proxy allowlist)', () => {
+  describe('allowed hosts', () => {
+    const allowed = [
+      'https://www.youtube.com/watch?v=abc',
+      'https://youtube.com/watch?v=abc',
+      'https://youtubei.googleapis.com/youtubei/v1/search',
+      'https://music.youtube.com/x',
+      'https://m.youtube.com/x',
+      'https://WWW.YOUTUBE.COM/x',
+      'https://www.youtube.com:443/x',
+    ];
+    for (const target of allowed) {
+      it(`allows ${target}`, () => {
+        assert.strictEqual(isAllowedUrl(target), true);
+      });
+    }
+  });
+
+  describe('rejected hosts', () => {
+    const rejected = [
+      'https://youtube.com.evil.tld/x',
+      'https://www.youtube.com.evil.tld/x',
+      'https://notyoutube.com/x',
+      'https://xyoutube.com/x',
+      'https://evil-youtube.com/x',
+      'https://youtube.com.attacker.com/x',
+      'https://youtubei.googleapis.com.evil.tld/x',
+      'https://youtube.com./x',
+      'https://youtube.com@evil.tld/x',
+      'https://evil.tld/?next=youtube.com',
+      'file:///etc/passwd',
+      'not a url',
+      '',
+    ];
+    for (const target of rejected) {
+      it(`rejects ${target || '(empty string)'}`, () => {
+        assert.strictEqual(isAllowedUrl(target), false);
+      });
+    }
   });
 });

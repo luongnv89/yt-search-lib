@@ -11,21 +11,9 @@
 import http from 'http';
 import https from 'https';
 import url from 'url';
+import { isAllowedUrl } from './proxy-allowlist.js';
 
 const PORT = process.env.PORT || 3000;
-const ALLOWED_HOSTS = ['www.youtube.com', 'youtube.com', 'youtubei.googleapis.com'];
-
-/**
- * Validates if a URL is allowed
- */
-function isAllowedUrl(targetUrl) {
-  try {
-    const parsedUrl = new URL(targetUrl);
-    return ALLOWED_HOSTS.some((host) => parsedUrl.hostname.includes(host));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Fetches from a target URL
