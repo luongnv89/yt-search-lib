@@ -4,3 +4,4 @@ coverage/
 *.min.js
 package-lock.json
 *.md
+.gitissue/
