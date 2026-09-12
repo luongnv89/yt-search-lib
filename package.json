@@ -50,6 +50,9 @@
   ],
   "author": "YouTube Search Contributors",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "esbuild": "^0.19.0",
     "eslint": "^8.57.1",

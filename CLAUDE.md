@@ -9,9 +9,8 @@ in `AGENTS.md`.
 
 ## Toolchain
 
-- **Node.js 24 LTS** — the pinned toolchain. Until `.nvmrc` lands
-  (modernization task 0.2), install Node 24 manually (`nvm install 24 &&
-  nvm use 24`, or your platform's installer).
+- **Node.js 24 LTS** — the pinned toolchain, declared in `.nvmrc` (so
+  `nvm use` picks it up) and floored by `engines.node` in `package.json`.
 - **npm only** — bundled with Node. No pnpm/yarn setup exists here.
 
 ## Install

@@ -5,9 +5,8 @@ modernization task Pre.1 and staged to feed `CLAUDE.md` in task Pre.2.
 
 ## Toolchain
 
-- **Node.js 24 LTS** — the pinned toolchain. An `.nvmrc` file lands with
-  Task 0.2; until then install Node 24 LTS manually (`nvm install 24 &&
-  nvm use 24`, or your platform's Node installer).
+- **Node.js 24 LTS** — the pinned toolchain, declared in `.nvmrc` (so
+  `nvm use` picks it up) and floored by `engines.node` in `package.json`.
 - **npm** — bundled with Node. There is no pnpm/yarn setup in this repo.
 
 ## Install
