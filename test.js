@@ -36,6 +36,10 @@ const { Transport } = await import('./src/lib/transport.js');
 const { parseSearchResults } = await import('./src/lib/parser.js');
 const YouTubeClient = (await import('./src/index.js')).default;
 const { isAllowedUrl } = await import('./proxy-allowlist.js');
+const { createProxyServer } = await import('./proxy-server.js');
+const { DEFAULT_ALLOWED_ORIGINS, parseAllowedOrigins, resolveAllowedOrigin } =
+  await import('./proxy-cors.js');
+const { RateLimiter } = await import('./proxy-rate-limit.js');
 
 // ============================================
 // LRUCache Tests
@@ -909,5 +913,358 @@ describe('isAllowedUrl (proxy allowlist)', () => {
         assert.strictEqual(isAllowedUrl(target), false);
       });
     }
+  });
+});
+
+// ============================================
+// Transport timeout (F-BUG-005)
+// ============================================
+
+describe('Transport timeout', () => {
+  it('uses a 30s default timeout', () => {
+    const transport = new Transport();
+    assert.strictEqual(transport.timeoutMs, 30000);
+  });
+
+  it('honors a configured timeout', () => {
+    const transport = new Transport({ timeout: 5000 });
+    assert.strictEqual(transport.timeoutMs, 5000);
+  });
+
+  it('falls back to the default on invalid timeout values', () => {
+    assert.strictEqual(new Transport({ timeout: -5 }).timeoutMs, 30000);
+    assert.strictEqual(new Transport({ timeout: 0 }).timeoutMs, 30000);
+    assert.strictEqual(new Transport({ timeout: 'abc' }).timeoutMs, 30000);
+  });
+
+  it('passes an AbortSignal to fetch', async () => {
+    let seenSignal;
+    const mockFetch = async (_url, options) => {
+      seenSignal = options.signal;
+      return { ok: true, json: async () => ({}) };
+    };
+    const transport = new Transport({ fetch: mockFetch });
+    await transport.post('https://example.com/x', {});
+    assert.ok(seenSignal instanceof AbortSignal);
+    assert.strictEqual(seenSignal.aborted, false);
+  });
+
+  it('normalizes a TimeoutError into a friendly message', async () => {
+    const mockFetch = async () => {
+      const error = new Error('The operation timed out');
+      error.name = 'TimeoutError';
+      throw error;
+    };
+    const transport = new Transport({ fetch: mockFetch, timeout: 50 });
+    await assert.rejects(
+      () => transport.post('https://example.com/x', {}),
+      (err) => err.message === 'Request timed out after 50ms'
+    );
+  });
+
+  it('lets YouTubeClient pass a timeout through', () => {
+    const client = new YouTubeClient({ timeout: 1234 });
+    assert.strictEqual(client.transport.timeoutMs, 1234);
+  });
+});
+
+// ============================================
+// Proxy CORS origin allowlist (F-SEC-001)
+// ============================================
+
+describe('proxy CORS allowlist', () => {
+  describe('parseAllowedOrigins()', () => {
+    it('parses a comma-separated list', () => {
+      assert.deepStrictEqual(parseAllowedOrigins('http://a.test, https://b.test ,'), [
+        'http://a.test',
+        'https://b.test',
+      ]);
+    });
+
+    it('falls back to local dev origins when unset', () => {
+      assert.deepStrictEqual(parseAllowedOrigins(undefined), DEFAULT_ALLOWED_ORIGINS);
+      assert.deepStrictEqual(parseAllowedOrigins(null), DEFAULT_ALLOWED_ORIGINS);
+    });
+
+    it('treats an explicitly empty value as deny-all', () => {
+      assert.deepStrictEqual(parseAllowedOrigins(''), []);
+      assert.deepStrictEqual(parseAllowedOrigins('   '), []);
+    });
+  });
+
+  describe('resolveAllowedOrigin()', () => {
+    const allowed = ['http://localhost:3000', 'https://app.example'];
+
+    it('echoes an allowlisted origin verbatim', () => {
+      assert.strictEqual(
+        resolveAllowedOrigin('https://app.example', allowed),
+        'https://app.example'
+      );
+    });
+
+    it('rejects origins not on the list', () => {
+      assert.strictEqual(resolveAllowedOrigin('https://evil.example', allowed), null);
+      assert.strictEqual(resolveAllowedOrigin('https://app.example.evil.test', allowed), null);
+    });
+
+    it('rejects missing or malformed inputs', () => {
+      assert.strictEqual(resolveAllowedOrigin(undefined, allowed), null);
+      assert.strictEqual(resolveAllowedOrigin('', allowed), null);
+      assert.strictEqual(resolveAllowedOrigin('http://localhost:3000', undefined), null);
+      assert.strictEqual(resolveAllowedOrigin('http://localhost:3000', []), null);
+    });
+  });
+});
+
+// ============================================
+// Proxy rate limiter (F-SEC-001)
+// ============================================
+
+describe('RateLimiter', () => {
+  it('allows up to max requests per window', () => {
+    const limiter = new RateLimiter({ max: 2, windowMs: 1000 });
+    assert.strictEqual(limiter.allow('client-a'), true);
+    assert.strictEqual(limiter.allow('client-a'), true);
+    assert.strictEqual(limiter.allow('client-a'), false);
+  });
+
+  it('tracks clients independently', () => {
+    const limiter = new RateLimiter({ max: 1, windowMs: 1000 });
+    assert.strictEqual(limiter.allow('a'), true);
+    assert.strictEqual(limiter.allow('b'), true);
+    assert.strictEqual(limiter.allow('a'), false);
+  });
+
+  it('resets the window after windowMs', () => {
+    let now = 0;
+    const limiter = new RateLimiter({ max: 1, windowMs: 1000, now: () => now });
+    assert.strictEqual(limiter.allow('a'), true);
+    assert.strictEqual(limiter.allow('a'), false);
+    now = 1001;
+    assert.strictEqual(limiter.allow('a'), true);
+  });
+
+  it('reports the remaining window via retryAfterMs', () => {
+    let now = 500;
+    const limiter = new RateLimiter({ max: 1, windowMs: 1000, now: () => now });
+    limiter.allow('a');
+    now = 700;
+    assert.strictEqual(limiter.retryAfterMs('a'), 800);
+    assert.strictEqual(limiter.retryAfterMs('untracked'), 0);
+  });
+
+  it('bounds tracked keys by evicting the oldest', () => {
+    const limiter = new RateLimiter({ max: 1, windowMs: 1000, maxKeys: 3 });
+    for (const key of ['a', 'b', 'c', 'd']) {
+      limiter.allow(key);
+    }
+    assert.ok(limiter.windows.size <= 3);
+  });
+});
+
+// ============================================
+// Proxy server behavior (F-BUG-004/005/011, F-SEC-001)
+// ============================================
+
+describe('createProxyServer', () => {
+  const allowAll = {
+    isAllowedUrl: () => true,
+    allowedOrigins: ['http://allowed.example'],
+  };
+
+  async function withServer(config, fn) {
+    const server = createProxyServer(config);
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      await fn(base);
+    } finally {
+      server.closeAllConnections?.();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }
+
+  async function withUpstream(handler, fn) {
+    const { createServer } = await import('node:http');
+    const upstream = createServer(handler);
+    await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${upstream.address().port}`;
+    try {
+      await fn(base);
+    } finally {
+      upstream.closeAllConnections?.();
+      await new Promise((resolve) => upstream.close(resolve));
+    }
+  }
+
+  it('returns 400 when the url parameter is missing', async () => {
+    await withServer(allowAll, async (base) => {
+      const res = await fetch(`${base}/proxy`, { method: 'POST', body: '{}' });
+      assert.strictEqual(res.status, 400);
+    });
+  });
+
+  it('returns 404 for unknown paths', async () => {
+    await withServer(allowAll, async (base) => {
+      const res = await fetch(`${base}/nope`, { method: 'POST', body: '{}' });
+      assert.strictEqual(res.status, 404);
+    });
+  });
+
+  it('returns 403 for a disallowed target', async () => {
+    await withServer({ ...allowAll, isAllowedUrl: () => false }, async (base) => {
+      const target = encodeURIComponent('https://youtube.com/x');
+      const res = await fetch(`${base}/proxy?url=${target}`, { method: 'POST', body: '{}' });
+      assert.strictEqual(res.status, 403);
+    });
+  });
+
+  it('rejects a declared over-cap body with 413', async () => {
+    await withServer({ ...allowAll, maxRequestBodyBytes: 16 }, async (base) => {
+      const target = encodeURIComponent('https://youtube.com/x');
+      const res = await fetch(`${base}/proxy?url=${target}`, {
+        method: 'POST',
+        body: 'x'.repeat(100),
+      });
+      assert.strictEqual(res.status, 413);
+    });
+  });
+
+  it('rejects a chunked over-cap body with 413', async () => {
+    await withServer({ ...allowAll, maxRequestBodyBytes: 16 }, async (base) => {
+      const target = encodeURIComponent('https://youtube.com/x');
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(100)));
+          controller.close();
+        },
+      });
+      const res = await fetch(`${base}/proxy?url=${target}`, {
+        method: 'POST',
+        body: stream,
+        duplex: 'half',
+      });
+      assert.strictEqual(res.status, 413);
+    });
+  });
+
+  it('proxies an allowed target and returns its response', async () => {
+    await withUpstream(
+      (req, res) => {
+        let received = '';
+        req.on('data', (chunk) => (received += chunk));
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, echo: received }));
+        });
+      },
+      async (upstreamBase) => {
+        await withServer(allowAll, async (base) => {
+          const res = await fetch(`${base}/proxy?url=${encodeURIComponent(upstreamBase + '/s')}`, {
+            method: 'POST',
+            body: JSON.stringify({ q: 'x' }),
+          });
+          assert.strictEqual(res.status, 200);
+          const json = await res.json();
+          assert.strictEqual(json.ok, true);
+          assert.deepStrictEqual(JSON.parse(json.echo), { q: 'x' });
+        });
+      }
+    );
+  });
+
+  it('returns 502 when the upstream response exceeds the cap', async () => {
+    await withUpstream(
+      (req, res) => {
+        req.on('data', () => {}); // consume the body so 'end' fires
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(Buffer.alloc(100, 'y'));
+        });
+      },
+      async (upstreamBase) => {
+        await withServer({ ...allowAll, maxResponseBodyBytes: 16 }, async (base) => {
+          const res = await fetch(
+            `${base}/proxy?url=${encodeURIComponent(upstreamBase + '/big')}`,
+            { method: 'POST', body: '{}' }
+          );
+          assert.strictEqual(res.status, 502);
+          const json = await res.json();
+          assert.match(json.error, /too large/i);
+        });
+      }
+    );
+  });
+
+  it('returns 504 when the upstream stalls past the timeout', async () => {
+    await withUpstream(
+      (req, _res) => {
+        req.resume(); // consume the body but never respond
+      },
+      async (upstreamBase) => {
+        await withServer({ ...allowAll, upstreamTimeoutMs: 50 }, async (base) => {
+          const res = await fetch(
+            `${base}/proxy?url=${encodeURIComponent(upstreamBase + '/slow')}`,
+            { method: 'POST', body: '{}' }
+          );
+          assert.strictEqual(res.status, 504);
+        });
+      }
+    );
+  });
+
+  it('returns 429 once the per-client rate limit is exceeded', async () => {
+    await withServer({ ...allowAll, rateLimitMax: 2 }, async (base) => {
+      const statuses = [];
+      for (let i = 0; i < 3; i++) {
+        const res = await fetch(`${base}/proxy`, { method: 'POST', body: '{}' });
+        statuses.push(res.status);
+      }
+      assert.deepStrictEqual(statuses, [400, 400, 429]);
+    });
+  });
+
+  it('echoes an allowlisted Origin and never emits a wildcard', async () => {
+    await withServer(allowAll, async (base) => {
+      const res = await fetch(`${base}/proxy`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'http://allowed.example' },
+      });
+      assert.strictEqual(res.status, 204);
+      assert.strictEqual(res.headers.get('access-control-allow-origin'), 'http://allowed.example');
+      assert.notStrictEqual(res.headers.get('access-control-allow-origin'), '*');
+    });
+  });
+
+  it('omits Access-Control-Allow-Origin for a non-allowlisted origin', async () => {
+    await withServer(allowAll, async (base) => {
+      const res = await fetch(`${base}/proxy`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'https://evil.example' },
+      });
+      assert.strictEqual(res.headers.get('access-control-allow-origin'), null);
+    });
+  });
+
+  it('omits Access-Control-Allow-Origin when no Origin is sent', async () => {
+    await withServer(allowAll, async (base) => {
+      const res = await fetch(`${base}/proxy`, { method: 'POST', body: '{}' });
+      assert.strictEqual(res.headers.get('access-control-allow-origin'), null);
+    });
+  });
+});
+
+// ============================================
+// Security policy document (F-SEC-003)
+// ============================================
+
+describe('SECURITY.md', () => {
+  it('exists at the repo root with a reporting channel', async () => {
+    const { existsSync, readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const path = fileURLToPath(new URL('./SECURITY.md', import.meta.url));
+    assert.ok(existsSync(path), 'SECURITY.md must exist at the repo root');
+    const content = readFileSync(path, 'utf8');
+    assert.match(content, /security\/advisories|mailto:|@/i);
   });
 });
