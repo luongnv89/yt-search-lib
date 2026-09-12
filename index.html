@@ -353,7 +353,7 @@
         if (!query) return;
 
         // UI Feedback
-        resultsContainer.innerHTML = '';
+        resultsContainer.replaceChildren();
         loader.style.display = 'block';
         searchBtn.disabled = true;
 
@@ -362,14 +362,20 @@
           const results = await client.search(query, { limit: 5 });
 
           if (results.length === 0) {
-            resultsContainer.innerHTML =
-              '<p style="text-align:center; grid-column: 1/-1; color: var(--text-secondary);">No results found. Try a different query or check the proxy.</p>';
+            showMessage(
+              'No results found. Try a different query or check the proxy.',
+              'var(--text-secondary)'
+            );
           } else {
             renderResults(results);
           }
         } catch (error) {
           console.error(error);
-          resultsContainer.innerHTML = `<p style="text-align:center; grid-column: 1/-1; color: #ff4444;">Error: ${error.message}. <br><small>This usually happens when the CORS proxy is down or blocked.</small></p>`;
+          showMessage(
+            `Error: ${error.message}.`,
+            '#ff4444',
+            'This usually happens when the CORS proxy is down or blocked.'
+          );
         } finally {
           loader.style.display = 'none';
           searchBtn.disabled = false;
@@ -377,26 +383,63 @@
       }
 
       function renderResults(videos) {
-        resultsContainer.innerHTML = videos
-          .map(
-            (video, index) => `
-                <div class="video-card" style="animation-delay: ${index * 0.1}s" onclick="window.open('https://www.youtube.com/watch?v=${video.id}', '_blank')">
-                    <div class="thumbnail-container">
-                        <img src="${video.thumbnails[video.thumbnails.length - 1]?.url || ''}" alt="${video.title}" loading="lazy">
-                        <span class="duration-badge">${video.duration}</span>
-                    </div>
-                    <div class="video-info">
-                        <h3 class="video-title">${video.title}</h3>
-                        <div class="video-meta">
-                            <span class="channel-name">${video.author}</span>
-                            <div class="dot"></div>
-                            <span>${video.viewCount}</span>
-                        </div>
-                    </div>
-                </div>
-            `
-          )
-          .join('');
+        const cards = videos.map((video, index) => {
+          const card = document.createElement('div');
+          card.className = 'video-card';
+          card.style.animationDelay = `${index * 0.1}s`;
+          card.addEventListener('click', () => {
+            const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}`;
+            window.open(url, '_blank');
+          });
+
+          const thumbnail = document.createElement('div');
+          thumbnail.className = 'thumbnail-container';
+          const img = document.createElement('img');
+          img.src = video.thumbnails[video.thumbnails.length - 1]?.url || '';
+          img.alt = video.title;
+          img.loading = 'lazy';
+          const badge = document.createElement('span');
+          badge.className = 'duration-badge';
+          badge.textContent = video.duration;
+          thumbnail.append(img, badge);
+
+          const info = document.createElement('div');
+          info.className = 'video-info';
+          const title = document.createElement('h3');
+          title.className = 'video-title';
+          title.textContent = video.title;
+          const meta = document.createElement('div');
+          meta.className = 'video-meta';
+          const channel = document.createElement('span');
+          channel.className = 'channel-name';
+          channel.textContent = video.author;
+          const dot = document.createElement('div');
+          dot.className = 'dot';
+          const views = document.createElement('span');
+          views.textContent = video.viewCount;
+          meta.append(channel, dot, views);
+          info.append(title, meta);
+
+          card.append(thumbnail, info);
+          return card;
+        });
+        resultsContainer.replaceChildren(...cards);
+      }
+
+      // Renders a status/error line inside the results grid. All dynamic text
+      // goes through textContent, so no markup is ever built from it.
+      function showMessage(text, color, hint) {
+        const p = document.createElement('p');
+        p.style.textAlign = 'center';
+        p.style.gridColumn = '1/-1';
+        p.style.color = color;
+        p.textContent = text;
+        if (hint) {
+          const small = document.createElement('small');
+          small.textContent = hint;
+          p.append(document.createElement('br'), small);
+        }
+        resultsContainer.replaceChildren(p);
       }
 
       searchBtn.addEventListener('click', performSearch);
