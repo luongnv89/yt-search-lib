@@ -1284,3 +1284,36 @@ describe('SECURITY.md', () => {
     assert.match(content, /security\/advisories|mailto:|@/i);
   });
 });
+
+// ============================================
+// Demo page DOM XSS guard (F-BUG-002)
+// ============================================
+
+describe('index.html demo page', () => {
+  const loadHtml = async () => {
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    return readFileSync(fileURLToPath(new URL('./index.html', import.meta.url)), 'utf8');
+  };
+
+  it('never interpolates data into an innerHTML assignment', async () => {
+    const html = await loadHtml();
+    const offenders = html
+      .split('\n')
+      .filter((line) => /innerHTML\s*\+?=/.test(line) && line.includes('${'));
+    assert.deepStrictEqual(offenders, []);
+  });
+
+  it('builds result cards with DOM APIs, not markup strings', async () => {
+    const html = await loadHtml();
+    const start = html.indexOf('function renderResults');
+    const end = html.indexOf('searchBtn.addEventListener');
+    assert.ok(start !== -1 && end > start, 'renderResults must exist before the click wiring');
+    const block = html.slice(start, end);
+    assert.ok(!block.includes('innerHTML'), 'renderResults must not write innerHTML');
+    assert.ok(!/onclick\s*=/.test(block), 'renderResults must not emit onclick attributes');
+    assert.match(block, /createElement\(/, 'cards are built with createElement');
+    assert.match(block, /\.textContent\s*=/, 'response fields are assigned via textContent');
+    assert.match(block, /addEventListener\('click'/, 'navigation is bound via addEventListener');
+  });
+});
