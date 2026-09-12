@@ -19,6 +19,7 @@ export class YouTubeClient {
    * @param {string} [options.proxyUrl] - URL for CORS proxy.
    * @param {boolean} [options.useCache] - Enable/disable caching (default: true).
    * @param {number} [options.cacheMaxAge] - Cache max age in ms.
+   * @param {number} [options.timeout] - Request timeout in ms (default 30000).
    */
   constructor(options = {}) {
     this.apiKey = options.apiKey || DEFAULT_API_KEY;
@@ -27,6 +28,7 @@ export class YouTubeClient {
     this.transport = new Transport({
       proxyUrl: options.proxyUrl,
       fetch: options.fetch,
+      timeout: options.timeout,
     });
 
     if (options.useCache !== false) {

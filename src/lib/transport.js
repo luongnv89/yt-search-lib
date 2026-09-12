@@ -5,17 +5,23 @@
  * @module transport
  */
 
+/** Requests are aborted after this when no timeout is configured (F-BUG-005). */
+const DEFAULT_TIMEOUT_MS = 30000;
+
 export class Transport {
   /**
    * @param {Object} config
    * @param {string} [config.proxyUrl] - Optional proxy URL (e.g. 'https://cors-anywhere.herokuapp.com/')
    * @param {function} [config.fetch] - Optional fetch polyfill/replacement
    * @param {Object} [config.headers] - Custom headers
+   * @param {number} [config.timeout] - Request timeout in ms (default 30000)
    */
   constructor(config = {}) {
     this.proxyUrl = config.proxyUrl || '';
     this.fetch = config.fetch || globalThis.fetch.bind(globalThis);
     this.headers = config.headers || {};
+    this.timeoutMs =
+      Number.isFinite(config.timeout) && config.timeout > 0 ? config.timeout : DEFAULT_TIMEOUT_MS;
   }
 
   /**
@@ -41,6 +47,7 @@ export class Transport {
         method: 'POST',
         headers: requestHeaders,
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (!response.ok) {
@@ -51,6 +58,9 @@ export class Transport {
       return await response.json();
     } catch (error) {
       // Enhance error message
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+      }
       if (error.message.includes('Failed to fetch')) {
         throw new Error(
           'Network error: Failed to connect. Check your internet connection or proxy settings.'
