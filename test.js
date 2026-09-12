@@ -1104,6 +1104,22 @@ describe('createProxyServer', () => {
     });
   });
 
+  it('returns 400 instead of crashing on a malformed request-target', async () => {
+    const { request } = await import('node:http');
+    await withServer(allowAll, async (base) => {
+      const { hostname, port } = new URL(base);
+      const status = await new Promise((resolve, reject) => {
+        const req = request({ hostname, port, path: 'http://[invalid', method: 'POST' }, (res) => {
+          res.resume();
+          res.on('end', () => resolve(res.statusCode));
+        });
+        req.on('error', reject);
+        req.end('{}');
+      });
+      assert.strictEqual(status, 400);
+    });
+  });
+
   it('returns 404 for unknown paths', async () => {
     await withServer(allowAll, async (base) => {
       const res = await fetch(`${base}/nope`, { method: 'POST', body: '{}' });

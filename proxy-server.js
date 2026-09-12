@@ -178,13 +178,29 @@ export function createProxyServer(options = {}) {
     }
 
     // Parse incoming request (F-BUG-011: WHATWG URL API, not the legacy parser).
-    const parsedUrl = new URL(req.url, 'http://localhost');
+    // Malformed request targets must never crash the process.
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(req.url, 'http://localhost');
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Malformed request URL' }));
+      return;
+    }
     const pathname = parsedUrl.pathname;
 
     // Handle proxy endpoint
     if (pathname === '/proxy' || pathname === '/proxy/' || pathname === '') {
-      const targetUrl =
-        parsedUrl.searchParams.get('url') || decodeURIComponent(pathname.split('/proxy/')[1] || '');
+      let targetUrl = parsedUrl.searchParams.get('url');
+      if (!targetUrl) {
+        try {
+          targetUrl = decodeURIComponent(pathname.split('/proxy/')[1] || '');
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Malformed request URL' }));
+          return;
+        }
+      }
 
       if (!targetUrl) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
