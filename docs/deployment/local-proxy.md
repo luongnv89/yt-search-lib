@@ -64,7 +64,7 @@ npm run test:integration:proxy
 2. **Proxy Endpoint**: The request is sent to `http://127.0.0.1:3000/proxy?url=ENCODED_URL`
 3. **YouTube Request**: The proxy forwards the request to YouTube's InnerTube API
 4. **Response**: The proxy returns YouTube's response to your application
-5. **CORS Headers**: The proxy adds CORS headers (`Access-Control-Allow-Origin: *`) to allow browser/cross-origin access
+5. **CORS Headers**: The proxy echoes the request `Origin` when it appears in the `ALLOWED_ORIGINS` allowlist (never a wildcard)
 
 ### Proxy URL Format
 
@@ -84,7 +84,9 @@ The library uses the query parameter format automatically.
 
 ## Features
 
-- ✅ **CORS Support**: Adds proper CORS headers to responses
+- ✅ **CORS Support**: Echoes allowlisted request origins (never `*`) — see `ALLOWED_ORIGINS`
+- ✅ **Rate Limiting**: Basic per-client request limit (`RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW_MS`)
+- ✅ **Bounded Bodies**: 1 MB caps on request and upstream-response bodies (413/502)
 - ✅ **Allowed Hosts**: Only proxies requests to YouTube-related domains (security feature)
 - ✅ **User-Agent**: Includes a browser-like User-Agent header to avoid blocking
 - ✅ **POST Requests**: Properly forwards JSON POST bodies
@@ -104,6 +106,9 @@ PORT=8080 npm run proxy:start
 ### Environment Variables
 
 - `PORT`: The port to listen on (default: 3000)
+- `ALLOWED_ORIGINS`: Comma-separated CORS origin allowlist (default: `http://localhost:3000,http://127.0.0.1:3000`)
+- `RATE_LIMIT_MAX`: Requests allowed per client per window (default: 100)
+- `RATE_LIMIT_WINDOW_MS`: Rate-limit window in milliseconds (default: 60000)
 
 ## Security Considerations
 
@@ -111,9 +116,10 @@ PORT=8080 npm run proxy:start
 
 ### Limitations
 
-- **Allowed Hosts**: The proxy only forwards requests to YouTube domains (whitelist protection)
+- **Allowed Hosts**: The proxy only forwards requests to YouTube domains (allowlist protection)
+- **Allowed Origins**: `Access-Control-Allow-Origin` is echoed only for origins in `ALLOWED_ORIGINS` — configure it for any public deployment
 - **No Authentication**: The proxy doesn't authenticate requests - any application using it can make YouTube searches
-- **Rate Limiting**: YouTube may rate-limit requests from the proxy's IP
+- **Rate Limiting**: The proxy enforces a basic per-client limit; YouTube may also rate-limit requests from the proxy's IP
 - **Data Privacy**: Requests pass through the proxy, so avoid sending sensitive data
 
 ### For Production
@@ -121,10 +127,10 @@ PORT=8080 npm run proxy:start
 For production environments:
 
 1. **Host Your Own Proxy**: Deploy the proxy-server.js on your infrastructure
-2. **Add Authentication**: Implement request authentication and rate limiting
-3. **Use HTTPS**: Always use HTTPS in production
-4. **Monitor Traffic**: Keep logs of proxy requests for security auditing
-5. **Set Strict CORS**: Don't use `*` for `Access-Control-Allow-Origin` - specify your domain
+2. **Set `ALLOWED_ORIGINS`**: Restrict CORS to your exact origins — the proxy never emits `Access-Control-Allow-Origin: *`
+3. **Add Authentication**: Implement request authentication for sensitive deployments
+4. **Use HTTPS**: Always use HTTPS in production
+5. **Monitor Traffic**: Keep logs of proxy requests for security auditing
 
 ### Deployment Examples
 
@@ -228,7 +234,7 @@ Then load-balance between them in your application.
 - `Content-Type`: Should be `application/json` for JSON requests
 
 **Response Headers**:
-- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Origin`: the request's `Origin`, echoed only when allowlisted
 - `Content-Type`: Matches the proxied response
 
 **Example**:
@@ -275,7 +281,7 @@ A: Yes, but public proxies may be rate-limited or unreliable. For production, ho
 A: No, the proxy doesn't cache. Caching is handled by the YouTubeClient library. You can enable caching with `useCache: true`.
 
 **Q: Is the proxy safe to expose to the internet?**
-A: No, not without authentication and rate limiting. Only use in development or behind proper security layers.
+A: Only with `ALLOWED_ORIGINS` set to your exact origins — the proxy enforces a basic rate limit and body-size caps, but has no authentication. Prefer development use or front it with proper security layers.
 
 ## Related Files
 

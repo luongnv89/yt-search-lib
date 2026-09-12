@@ -37,10 +37,10 @@ hooks — `pre-commit` runs `npx prettier --check .` and `npx eslint .`.
 
 ## Environment variables
 
-`.env.example` lists many variables, but **the code reads only `PORT`**
-(`proxy-server.js`, default `3000`). Everything else (`YOUTUBE_PROXY_URL`,
-`NODE_ENV`, rate-limit and CORS keys, …) is currently dead configuration —
-safe to leave unset.
+`.env.example` lists several variables; the code reads **`PORT`** plus the
+proxy hardening keys **`ALLOWED_ORIGINS`**, **`RATE_LIMIT_MAX`**, and
+**`RATE_LIMIT_WINDOW_MS`** (all in `proxy-server.js`). `YOUTUBE_PROXY_URL`,
+`NODE_ENV`, and the rest remain dead configuration — safe to leave unset.
 
 ## Integration tests — live network required
 

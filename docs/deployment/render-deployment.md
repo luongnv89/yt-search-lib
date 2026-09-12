@@ -49,7 +49,7 @@ Check that your `package.json` includes:
 
 ### 1.3 Create a Render configuration file
 
-Create a `render.yaml` file in the root of your repository:
+A `render.yaml` blueprint already exists in the root of this repository:
 
 ```yaml
 services:
@@ -62,7 +62,24 @@ services:
     envVars:
       - key: PORT
         value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: 100
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
 ```
+
+> **Security note (public deploys):** `ALLOWED_ORIGINS` is marked
+> `sync: false`, so Render requires you to supply it when creating the
+> service — the proxy never emits a wildcard `Access-Control-Allow-Origin`
+> header. Set it to a comma-separated list of the exact origins that may use
+> the proxy (e.g. `https://yourdomain.com`). The proxy also enforces a basic
+> per-client rate limit (`RATE_LIMIT_MAX` requests per
+> `RATE_LIMIT_WINDOW_MS`) and 1 MB caps on request and upstream-response
+> bodies.
 
 Save this in the root directory:
 ```
@@ -118,6 +135,9 @@ Click **"Advanced"** and add environment variables:
 |-----|-------|
 | `PORT` | `10000` |
 | `NODE_ENV` | `production` |
+| `ALLOWED_ORIGINS` | `https://yourdomain.com` (comma-separated; **required** — the proxy never emits `Access-Control-Allow-Origin: *`) |
+| `RATE_LIMIT_MAX` | `100` (optional; requests per window per client) |
+| `RATE_LIMIT_WINDOW_MS` | `60000` (optional; rate-limit window in ms) |
 
 **Note**: Render assigns port 10000 by default on the free tier. The proxy will automatically use the PORT environment variable.
 

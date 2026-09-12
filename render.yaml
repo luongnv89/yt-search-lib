@@ -10,3 +10,12 @@ services:
         value: 10000
       - key: NODE_ENV
         value: production
+      # Required at deploy time (sync: false): the operator must supply an
+      # explicit CORS origin allowlist — the proxy never emits a wildcard
+      # Access-Control-Allow-Origin (F-SEC-001).
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: 100
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
