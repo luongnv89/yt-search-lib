@@ -8,6 +8,14 @@ on:
   schedule:
     # Run weekly security audit
     - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit:
@@ -28,13 +36,6 @@ jobs:
 
       - name: Run npm audit
         run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: Report audit results
-        if: ${{ failure() }}
-        run: |
-          echo "::warning::Security audit found high-severity vulnerabilities"
-          echo "Please review the audit output above and update dependencies"
 
   dependency-check:
     name: Outdated Dependencies
