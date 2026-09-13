@@ -137,15 +137,12 @@ describe('LRUCache', () => {
       assert.strictEqual(result, null);
     });
 
-    it('should return null for expired items', () => {
+    it('should return null for expired items', async () => {
       const cache = new LRUCache('test_', 1, 10); // 1ms maxAge
       cache.set('key1', 'value1');
 
       // Wait for expiration
-      const start = Date.now();
-      while (Date.now() - start < 10) {
-        /* busy wait for cache expiration */
-      }
+      await new Promise((r) => setTimeout(r, 10));
 
       const result = cache.get('key1');
       assert.strictEqual(result, null);
