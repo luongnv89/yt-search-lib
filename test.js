@@ -38,6 +38,44 @@ const { DEFAULT_ALLOWED_ORIGINS, parseAllowedOrigins, resolveAllowedOrigin } =
   await import('./proxy-cors.js');
 const { RateLimiter } = await import('./proxy-rate-limit.js');
 
+/**
+ * Wraps section entries in the InnerTube search-response envelope the
+ * parser reads.
+ */
+const searchResponse = (sections) => ({
+  contents: {
+    twoColumnSearchResultsRenderer: {
+      primaryContents: { sectionListRenderer: { contents: sections } },
+    },
+  },
+});
+
+/** The common fixture: one itemSectionRenderer holding renderer items. */
+const searchResponseWithItems = (items) =>
+  searchResponse([{ itemSectionRenderer: { contents: items } }]);
+
+/** Minimal Response stand-in for the injected fetch hook. */
+class MockResponse {
+  constructor(body) {
+    this._body = body;
+  }
+  async json() {
+    return JSON.parse(this._body);
+  }
+  get ok() {
+    return true;
+  }
+  get status() {
+    return 200;
+  }
+  get statusText() {
+    return 'OK';
+  }
+  async text() {
+    return this._body;
+  }
+}
+
 // ============================================
 // LRUCache Tests
 // ============================================
@@ -428,40 +466,22 @@ describe('Parser', () => {
     });
 
     it('should parse video renderer correctly', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          videoRenderer: {
-                            videoId: 'abc123',
-                            title: { simpleText: 'Test Video' },
-                            thumbnail: {
-                              thumbnails: [
-                                { url: 'https://example.com/thumb.jpg', width: 320, height: 180 },
-                              ],
-                            },
-                            ownerText: { simpleText: 'Test Channel' },
-                            lengthText: { simpleText: '10:00' },
-                            publishedTimeText: { simpleText: '2 days ago' },
-                            viewCountText: { simpleText: '1M views' },
-                            badges: [{ metadataBadgeRenderer: { label: 'NEW' } }],
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
+      const response = searchResponseWithItems([
+        {
+          videoRenderer: {
+            videoId: 'abc123',
+            title: { simpleText: 'Test Video' },
+            thumbnail: {
+              thumbnails: [{ url: 'https://example.com/thumb.jpg', width: 320, height: 180 }],
             },
+            ownerText: { simpleText: 'Test Channel' },
+            lengthText: { simpleText: '10:00' },
+            publishedTimeText: { simpleText: '2 days ago' },
+            viewCountText: { simpleText: '1M views' },
+            badges: [{ metadataBadgeRenderer: { label: 'NEW' } }],
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 1);
@@ -477,33 +497,17 @@ describe('Parser', () => {
     });
 
     it('should parse channel renderer correctly', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          channelRenderer: {
-                            channelId: 'UC123',
-                            title: { simpleText: 'Test Channel' },
-                            descriptionSnippet: { simpleText: 'Channel description' },
-                            subscriberCountText: { simpleText: '1M subscribers' },
-                            videoCountText: { simpleText: '100 videos' },
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        {
+          channelRenderer: {
+            channelId: 'UC123',
+            title: { simpleText: 'Test Channel' },
+            descriptionSnippet: { simpleText: 'Channel description' },
+            subscriberCountText: { simpleText: '1M subscribers' },
+            videoCountText: { simpleText: '100 videos' },
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 1);
@@ -516,32 +520,16 @@ describe('Parser', () => {
     });
 
     it('should parse playlist renderer correctly', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          playlistRenderer: {
-                            playlistId: 'PL123',
-                            title: { simpleText: 'Test Playlist' },
-                            videoCountText: { simpleText: '50 videos' },
-                            longBylineText: { simpleText: 'Playlist Owner' },
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        {
+          playlistRenderer: {
+            playlistId: 'PL123',
+            title: { simpleText: 'Test Playlist' },
+            videoCountText: { simpleText: '50 videos' },
+            longBylineText: { simpleText: 'Playlist Owner' },
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 1);
@@ -553,35 +541,19 @@ describe('Parser', () => {
     });
 
     it('should handle mixed content types', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
-                        {
-                          channelRenderer: { channelId: 'c1', title: { simpleText: 'Channel 1' } },
-                        },
-                        {
-                          playlistRenderer: {
-                            playlistId: 'p1',
-                            title: { simpleText: 'Playlist 1' },
-                          },
-                        },
-                        { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+        {
+          channelRenderer: { channelId: 'c1', title: { simpleText: 'Channel 1' } },
+        },
+        {
+          playlistRenderer: {
+            playlistId: 'p1',
+            title: { simpleText: 'Playlist 1' },
           },
         },
-      };
+        { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 4);
@@ -592,57 +564,25 @@ describe('Parser', () => {
     });
 
     it('should skip unknown item types', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
-                        { unknownRenderer: { foo: 'bar' } },
-                        { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      };
+      const response = searchResponseWithItems([
+        { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+        { unknownRenderer: { foo: 'bar' } },
+        { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 2);
     });
 
     it('should handle missing optional fields gracefully', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          videoRenderer: {
-                            videoId: 'v1',
-                            // Missing title, thumbnail, etc.
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        {
+          videoRenderer: {
+            videoId: 'v1',
+            // Missing title, thumbnail, etc.
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 1);
@@ -653,23 +593,7 @@ describe('Parser', () => {
     });
 
     it('should handle empty item section', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [],
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      };
+      const response = searchResponseWithItems([]);
 
       const results = parseSearchResults(response);
       assert.deepStrictEqual(results, []);
@@ -714,56 +638,21 @@ describe('YouTubeClient', () => {
   describe('search()', () => {
     it('should filter results by type', async () => {
       const mockFetch = async (_url, _options) => {
-        return new Response(
-          JSON.stringify({
-            contents: {
-              twoColumnSearchResultsRenderer: {
-                primaryContents: {
-                  sectionListRenderer: {
-                    contents: [
-                      {
-                        itemSectionRenderer: {
-                          contents: [
-                            { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
-                            { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
-                            {
-                              channelRenderer: {
-                                channelId: 'c1',
-                                title: { simpleText: 'Channel 1' },
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
+        return new MockResponse(
+          JSON.stringify(
+            searchResponseWithItems([
+              { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+              { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
+              {
+                channelRenderer: {
+                  channelId: 'c1',
+                  title: { simpleText: 'Channel 1' },
                 },
               },
-            },
-          })
+            ])
+          )
         );
       };
-
-      class Response {
-        constructor(body) {
-          this._body = body;
-        }
-        async json() {
-          return JSON.parse(this._body);
-        }
-        get ok() {
-          return true;
-        }
-        get status() {
-          return 200;
-        }
-        get statusText() {
-          return 'OK';
-        }
-        async text() {
-          return this._body;
-        }
-      }
 
       const client = new YouTubeClient({
         useCache: false,
@@ -781,51 +670,16 @@ describe('YouTubeClient', () => {
 
     it('should respect limit parameter', async () => {
       const mockFetch = async (_url, _options) => {
-        return new Response(
-          JSON.stringify({
-            contents: {
-              twoColumnSearchResultsRenderer: {
-                primaryContents: {
-                  sectionListRenderer: {
-                    contents: [
-                      {
-                        itemSectionRenderer: {
-                          contents: [
-                            { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
-                            { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
-                            { videoRenderer: { videoId: 'v3', title: { simpleText: 'Video 3' } } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            },
-          })
+        return new MockResponse(
+          JSON.stringify(
+            searchResponseWithItems([
+              { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+              { videoRenderer: { videoId: 'v2', title: { simpleText: 'Video 2' } } },
+              { videoRenderer: { videoId: 'v3', title: { simpleText: 'Video 3' } } },
+            ])
+          )
         );
       };
-
-      class Response {
-        constructor(body) {
-          this._body = body;
-        }
-        async json() {
-          return JSON.parse(this._body);
-        }
-        get ok() {
-          return true;
-        }
-        get status() {
-          return 200;
-        }
-        get statusText() {
-          return 'OK';
-        }
-        async text() {
-          return this._body;
-        }
-      }
 
       const client = new YouTubeClient({
         useCache: false,
@@ -844,37 +698,8 @@ describe('YouTubeClient', () => {
       let calls = 0;
       const mockFetch = async () => {
         calls++;
-        return new Response(
-          JSON.stringify({
-            contents: {
-              twoColumnSearchResultsRenderer: {
-                primaryContents: { sectionListRenderer: { contents: [] } },
-              },
-            },
-          })
-        );
+        return new MockResponse(JSON.stringify(searchResponse([])));
       };
-
-      class Response {
-        constructor(body) {
-          this._body = body;
-        }
-        async json() {
-          return JSON.parse(this._body);
-        }
-        get ok() {
-          return true;
-        }
-        get status() {
-          return 200;
-        }
-        get statusText() {
-          return 'OK';
-        }
-        async text() {
-          return this._body;
-        }
-      }
 
       const client = new YouTubeClient({ fetch: mockFetch });
 
@@ -934,59 +759,27 @@ describe('Edge Cases', () => {
   describe('Parser edge cases', () => {
     it('should handle runs with empty text', () => {
       // Test the behavior indirectly through parseSearchResults
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          videoRenderer: {
-                            videoId: 'v1',
-                            title: { runs: [{ text: '' }, { text: 'hello' }, { text: '' }] },
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        {
+          videoRenderer: {
+            videoId: 'v1',
+            title: { runs: [{ text: '' }, { text: 'hello' }, { text: '' }] },
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results[0].title, 'hello');
     });
 
     it('should handle malformed JSON in response gracefully', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          videoRenderer: {
-                            // Missing videoId - parser still creates item with undefined id
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            },
+      const response = searchResponseWithItems([
+        {
+          videoRenderer: {
+            // Missing videoId - parser still creates item with undefined id
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       // The parser creates an item even with missing videoId
@@ -995,33 +788,17 @@ describe('Edge Cases', () => {
     });
 
     it('should handle malformed thumbnails array', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                contents: [
-                  {
-                    itemSectionRenderer: {
-                      contents: [
-                        {
-                          videoRenderer: {
-                            videoId: 'v1',
-                            title: { simpleText: 'Test' },
-                            thumbnail: {
-                              thumbnails: null,
-                            },
-                          },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
+      const response = searchResponseWithItems([
+        {
+          videoRenderer: {
+            videoId: 'v1',
+            title: { simpleText: 'Test' },
+            thumbnail: {
+              thumbnails: null,
             },
           },
         },
-      };
+      ]);
 
       const results = parseSearchResults(response);
       assert.strictEqual(results.length, 1);
@@ -1621,13 +1398,7 @@ describe('error semantics', () => {
   });
 
   describe('Parser malformed vs empty results (F-BUG-008)', () => {
-    const emptyResponse = () => ({
-      contents: {
-        twoColumnSearchResultsRenderer: {
-          primaryContents: { sectionListRenderer: { contents: [] } },
-        },
-      },
-    });
+    const emptyResponse = () => searchResponse([]);
 
     it('distinguishes a malformed payload from a real empty result', () => {
       assert.throws(() => parseSearchResults({ unexpected: true }), ParseError);
@@ -1635,18 +1406,8 @@ describe('error semantics', () => {
     });
 
     it('throws ParseError with the original error on cause for mid-parse failures', () => {
-      const response = {
-        contents: {
-          twoColumnSearchResultsRenderer: {
-            primaryContents: {
-              sectionListRenderer: {
-                // Non-iterable item contents — throws inside the loop.
-                contents: [{ itemSectionRenderer: { contents: 42 } }],
-              },
-            },
-          },
-        },
-      };
+      // Non-iterable item contents — throws inside the loop.
+      const response = searchResponse([{ itemSectionRenderer: { contents: 42 } }]);
       assert.throws(
         () => parseSearchResults(response),
         (err) => err instanceof ParseError && err.cause instanceof TypeError
@@ -1719,30 +1480,15 @@ describe('cache key hygiene', () => {
       calls++;
       return {
         ok: true,
-        json: async () => ({
-          contents: {
-            twoColumnSearchResultsRenderer: {
-              primaryContents: {
-                sectionListRenderer: {
-                  contents: [
-                    {
-                      itemSectionRenderer: {
-                        contents: [
-                          {
-                            videoRenderer: {
-                              videoId: `v${calls}`,
-                              title: { simpleText: `Video ${calls}` },
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                },
+        json: async () =>
+          searchResponseWithItems([
+            {
+              videoRenderer: {
+                videoId: `v${calls}`,
+                title: { simpleText: `Video ${calls}` },
               },
             },
-          },
-        }),
+          ]),
       };
     };
     const client = new YouTubeClient({ fetch: mockFetch });
