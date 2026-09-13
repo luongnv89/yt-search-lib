@@ -60,7 +60,8 @@ describe('LRUCache', () => {
       assert.strictEqual(cache.namespace, 'yt_search_');
       assert.strictEqual(cache.maxAge, 3600000);
       assert.strictEqual(cache.capacity, 20);
-      assert.deepStrictEqual(cache.keys, []);
+      // A fresh cache behaves as empty.
+      assert.strictEqual(cache.get('key1'), null);
     });
 
     it('should initialize with custom values', () => {
@@ -82,22 +83,28 @@ describe('LRUCache', () => {
       assert.ok(parsed.timestamp > 0);
     });
 
-    it('should add key to keys list', () => {
-      const cache = new LRUCache('test_');
+    it('should track a stored key for retrieval and eviction', () => {
+      const cache = new LRUCache('test_', 3600000, 1);
       cache.set('key1', 'value1');
+      assert.strictEqual(cache.get('key1'), 'value1');
 
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.deepStrictEqual(keys, ['key1']);
+      // The tracked key is the one evicted when capacity is exceeded.
+      cache.set('key2', 'value2');
+      assert.strictEqual(cache.get('key1'), null);
+      assert.strictEqual(cache.get('key2'), 'value2');
     });
 
     it('should move existing key to end (most recent)', () => {
-      const cache = new LRUCache('test_', 3600000, 10);
+      const cache = new LRUCache('test_', 3600000, 2);
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
       cache.set('key1', 'value1_updated');
 
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.deepStrictEqual(keys, ['key2', 'key1']);
+      // Re-setting key1 made it most-recently-used, so key2 is evicted next.
+      cache.set('key3', 'value3');
+      assert.strictEqual(cache.get('key2'), null);
+      assert.strictEqual(cache.get('key1'), 'value1_updated');
+      assert.strictEqual(cache.get('key3'), 'value3');
     });
 
     it('should evict oldest item when capacity exceeded', () => {
@@ -107,9 +114,11 @@ describe('LRUCache', () => {
       cache.set('key3', 'value3');
       cache.set('key4', 'value4');
 
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.deepStrictEqual(keys, ['key2', 'key3', 'key4']);
-      assert.strictEqual(localStorageMock.getItem('test_key1'), null);
+      // key1 was evicted; the three newest items remain retrievable.
+      assert.strictEqual(cache.get('key1'), null);
+      assert.strictEqual(cache.get('key2'), 'value2');
+      assert.strictEqual(cache.get('key3'), 'value3');
+      assert.strictEqual(cache.get('key4'), 'value4');
     });
   });
 
@@ -128,29 +137,29 @@ describe('LRUCache', () => {
       assert.strictEqual(result, null);
     });
 
-    it('should return null for expired items', () => {
+    it('should return null for expired items', async () => {
       const cache = new LRUCache('test_', 1, 10); // 1ms maxAge
       cache.set('key1', 'value1');
 
       // Wait for expiration
-      const start = Date.now();
-      while (Date.now() - start < 10) {
-        /* busy wait for cache expiration */
-      }
+      await new Promise((r) => setTimeout(r, 10));
 
       const result = cache.get('key1');
       assert.strictEqual(result, null);
     });
 
     it('should promote key to most recent on access', () => {
-      const cache = new LRUCache('test_', 3600000, 10);
+      const cache = new LRUCache('test_', 3600000, 2);
       cache.set('key1', 'value1');
       cache.set('key2', 'value2');
 
+      // Promotes key1 past key2, so key2 is the one evicted next.
       cache.get('key1');
+      cache.set('key3', 'value3');
 
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.deepStrictEqual(keys, ['key2', 'key1']);
+      assert.strictEqual(cache.get('key2'), null);
+      assert.strictEqual(cache.get('key1'), 'value1');
+      assert.strictEqual(cache.get('key3'), 'value3');
     });
 
     it('should return null on parse error', () => {
@@ -171,9 +180,6 @@ describe('LRUCache', () => {
 
       assert.strictEqual(cache.get('key1'), null);
       assert.strictEqual(cache.get('key2'), 'value2');
-
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.deepStrictEqual(keys, ['key2']);
     });
   });
 
@@ -189,7 +195,6 @@ describe('LRUCache', () => {
       assert.strictEqual(cache.get('key1'), null);
       assert.strictEqual(cache.get('key2'), null);
       assert.strictEqual(cache.get('key3'), null);
-      assert.deepStrictEqual(cache.keys, []);
     });
   });
 
@@ -205,17 +210,14 @@ describe('LRUCache', () => {
         const cache = new LRUCache('node_');
         cache.set('key1', 'value1');
         cache.set('key2', 'value2');
-        assert.deepStrictEqual(cache.keys, ['key1', 'key2']);
-
         assert.strictEqual(cache.get('key1'), 'value1');
-        // get() promoted key1 to most-recently-used.
-        assert.deepStrictEqual(cache.keys, ['key2', 'key1']);
+        assert.strictEqual(cache.get('key2'), 'value2');
 
         cache.remove('key1');
         assert.strictEqual(cache.get('key1'), null);
 
         cache.clear();
-        assert.deepStrictEqual(cache.keys, []);
+        assert.strictEqual(cache.get('key2'), null);
 
         // The fallback works silently — no warn spam in Node.js.
         assert.strictEqual(warnSpy.mock.callCount(), 0);
@@ -238,11 +240,13 @@ describe('LRUCache', () => {
       const cache = new LRUCache('evict_', 3600000, 2);
       cache.set('a', 1);
       cache.set('b', 2);
+      // Promote 'a' past 'b', then exceed capacity — 'b' is evicted, not 'a'.
+      cache.get('a');
       cache.set('c', 3);
 
-      assert.strictEqual(cache.get('a'), null);
+      assert.strictEqual(cache.get('b'), null);
+      assert.strictEqual(cache.get('a'), 1);
       assert.strictEqual(cache.get('c'), 3);
-      assert.deepStrictEqual(cache.keys, ['b', 'c']);
     });
 
     it('should fall back to memory when localStorage is present but unusable', () => {
@@ -306,8 +310,11 @@ describe('LRUCache', () => {
         const cache = new LRUCache('fail_');
         cache.set('key1', 'value1');
 
-        // The value landed; the failed index write left no dangling entry.
-        assert.deepStrictEqual(cache.keys, []);
+        // The value landed; the failed index write left no dangling entry —
+        // clear() only removes indexed keys, so a stray 'key1' entry would
+        // have deleted the stored item.
+        assert.strictEqual(cache.get('key1'), 'value1');
+        cache.clear();
         assert.strictEqual(cache.get('key1'), 'value1');
       } finally {
         warnSpy.mock.restore();
@@ -840,11 +847,51 @@ describe('YouTubeClient', () => {
   });
 
   describe('clearCache()', () => {
-    it('should clear the cache when enabled', () => {
-      const client = new YouTubeClient();
+    it('should clear the cache when enabled', async () => {
+      let calls = 0;
+      const mockFetch = async () => {
+        calls++;
+        return new Response(
+          JSON.stringify({
+            contents: {
+              twoColumnSearchResultsRenderer: {
+                primaryContents: { sectionListRenderer: { contents: [] } },
+              },
+            },
+          })
+        );
+      };
+
+      class Response {
+        constructor(body) {
+          this._body = body;
+        }
+        async json() {
+          return JSON.parse(this._body);
+        }
+        get ok() {
+          return true;
+        }
+        get status() {
+          return 200;
+        }
+        get statusText() {
+          return 'OK';
+        }
+        async text() {
+          return this._body;
+        }
+      }
+
+      const client = new YouTubeClient({ fetch: mockFetch });
+
+      await client.search('clearCache-probe');
+      await client.search('clearCache-probe');
+      assert.strictEqual(calls, 1, 'identical repeat search should be served from cache');
+
       client.clearCache();
-      const cacheKeysAfter = JSON.parse(localStorageMock.getItem('yt_search_keys') || '[]');
-      assert.strictEqual(cacheKeysAfter.length, 0);
+      await client.search('clearCache-probe');
+      assert.strictEqual(calls, 2, 'search after clearCache should fetch again');
     });
 
     it('should do nothing when cache is disabled', () => {
@@ -877,10 +924,11 @@ describe('Edge Cases', () => {
     it('should handle capacity of 0', () => {
       const cache = new LRUCache('test_', 3600000, 0);
       cache.set('key1', 'value1');
-      // With capacity 0, the key is added then immediately evicted
-      // since 1 > 0, so the eviction loop runs
-      const keys = JSON.parse(localStorageMock.getItem('test_keys'));
-      assert.strictEqual(keys.length, 0);
+      // With capacity 0 the key is added then immediately evicted from the
+      // index, so the stored item survives clear() — which only removes
+      // indexed keys.
+      cache.clear();
+      assert.strictEqual(cache.get('key1'), 'value1');
     });
 
     it('should handle negative maxAge', () => {

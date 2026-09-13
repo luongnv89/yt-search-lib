@@ -3,14 +3,23 @@
 /**
  * Integration tests for yt-search-lib with local CORS proxy
  *
- * Usage:
- * 1. Start the proxy server: node proxy-server.js
- * 2. In another terminal: node integration-with-proxy.test.js
+ * These tests make real network requests to YouTube through the local proxy
+ * and are explicitly opt-in: they exit early unless RUN_INTEGRATION=1 is set.
  *
- * Or use npm scripts:
- * npm run proxy:start (in one terminal)
- * npm run test:integration:proxy (in another terminal)
+ * Usage:
+ * 1. Start the proxy server: npm run proxy:start
+ * 2. In another terminal: RUN_INTEGRATION=1 npm run test:integration:proxy
  */
+
+// Opt-in gate: live network tests never run by accident (not under npm test,
+// not on a bare `node integration-with-proxy.test.js`). CI runs them only
+// from the opt-in integration job (workflow_dispatch / weekly schedule).
+if (process.env.RUN_INTEGRATION !== '1') {
+  /* eslint-disable no-console */
+  console.log('Skipping live integration tests — set RUN_INTEGRATION=1 to run them.');
+  /* eslint-enable no-console */
+  process.exit(0);
+}
 
 import { YouTubeClient } from './src/index.js';
 

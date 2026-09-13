@@ -51,12 +51,19 @@ in `.env.example` (`YOUTUBE_PROXY_URL`, `NODE_ENV`, rate-limit and CORS keys,
 ## Integration tests — live network required
 
 `npm test` does **not** run the integration tests. Both `test:integration*`
-scripts require live network access to YouTube plus a working CORS proxy:
+scripts require live network access to YouTube plus a working CORS proxy, and
+both are **explicitly opt-in**: each file exits early with a skip message
+unless `RUN_INTEGRATION=1` is set in the environment.
 
-- `npm run test:integration` (`node integration.test.js`) — hits YouTube via
-  the public `api.allorigins.win` proxy, which may be rate-limited.
-- `npm run test:integration:proxy` (`node integration-with-proxy.test.js`) —
-  requires `npm run proxy:start` already running in a second terminal.
+- `RUN_INTEGRATION=1 npm run test:integration` (`node integration.test.js`) —
+  hits YouTube via the public `api.allorigins.win` proxy, which may be
+  rate-limited.
+- `RUN_INTEGRATION=1 npm run test:integration:proxy`
+  (`node integration-with-proxy.test.js`) — requires `npm run proxy:start`
+  already running in a second terminal.
+
+CI runs them only in the `integration` job of `ci.yml`, gated to
+`workflow_dispatch` and the weekly `schedule` trigger — never on push/PR.
 
 Treat them as manual/optional checks in sandboxed or agent environments: an
 offline failure is expected, not a regression.
