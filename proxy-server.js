@@ -42,6 +42,18 @@ function intFromEnv(value, fallback) {
 }
 
 /**
+ * Write a JSON response and end the stream.
+ * @param {http.ServerResponse} res
+ * @param {number} statusCode
+ * @param {object} payload
+ * @param {object} [headers] - Extra response headers (e.g. Retry-After).
+ */
+function sendJson(res, statusCode, payload, headers = {}) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json', ...headers });
+  res.end(JSON.stringify(payload));
+}
+
+/**
  * Fetches from a target URL, bounding the upstream response body and
  * enforcing an upstream timeout.
  */
@@ -126,14 +138,14 @@ function fetchUrl(targetUrl, body, config, callback) {
  * Builds the CORS proxy HTTP server without listening, so tests and
  * embedders can inject limits, origins, and the allowlist predicate.
  *
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {number} [options.maxRequestBodyBytes]
  * @param {number} [options.maxResponseBodyBytes]
  * @param {number} [options.upstreamTimeoutMs]
  * @param {string[]} [options.allowedOrigins]
  * @param {number} [options.rateLimitMax]
  * @param {number} [options.rateLimitWindowMs]
- * @param {function} [options.isAllowedUrl] - Target allowlist predicate.
+ * @param {function(string): boolean} [options.isAllowedUrl] - Target allowlist predicate.
  * @returns {http.Server}
  */
 export function createProxyServer(options = {}) {
@@ -161,7 +173,6 @@ export function createProxyServer(options = {}) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
@@ -171,11 +182,14 @@ export function createProxyServer(options = {}) {
     // Basic per-client rate limit (F-SEC-001).
     const clientKey = req.socket.remoteAddress || 'unknown';
     if (!rateLimiter.allow(clientKey)) {
-      res.writeHead(429, {
-        'Content-Type': 'application/json',
-        'Retry-After': Math.ceil(rateLimiter.retryAfterMs(clientKey) / 1000),
-      });
-      res.end(JSON.stringify({ error: 'Too many requests' }));
+      sendJson(
+        res,
+        429,
+        { error: 'Too many requests' },
+        {
+          'Retry-After': Math.ceil(rateLimiter.retryAfterMs(clientKey) / 1000),
+        }
+      );
       return;
     }
 
@@ -185,42 +199,36 @@ export function createProxyServer(options = {}) {
     try {
       parsedUrl = new URL(req.url, 'http://localhost');
     } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Malformed request URL' }));
+      sendJson(res, 400, { error: 'Malformed request URL' });
       return;
     }
     const pathname = parsedUrl.pathname;
 
-    // Handle proxy endpoint
     if (pathname === '/proxy' || pathname === '/proxy/' || pathname === '') {
       let targetUrl = parsedUrl.searchParams.get('url');
       if (!targetUrl) {
         try {
           targetUrl = decodeURIComponent(pathname.split('/proxy/')[1] || '');
         } catch {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Malformed request URL' }));
+          sendJson(res, 400, { error: 'Malformed request URL' });
           return;
         }
       }
 
       if (!targetUrl) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Missing url parameter' }));
+        sendJson(res, 400, { error: 'Missing url parameter' });
         return;
       }
 
       if (!config.isAllowedUrl(targetUrl)) {
-        res.writeHead(403, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'URL not allowed' }));
+        sendJson(res, 403, { error: 'URL not allowed' });
         return;
       }
 
       // Reject over-cap bodies up front when the client declares a length.
       const declaredLength = Number(req.headers['content-length'] || 0);
       if (declaredLength > config.maxRequestBodyBytes) {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Request body too large' }));
+        sendJson(res, 413, { error: 'Request body too large' });
         req.resume(); // drain and discard — never buffered
         return;
       }
@@ -236,8 +244,7 @@ export function createProxyServer(options = {}) {
         received += chunk.length;
         if (received > config.maxRequestBodyBytes) {
           rejected = true;
-          res.writeHead(413, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Request body too large' }));
+          sendJson(res, 413, { error: 'Request body too large' });
           req.removeAllListeners('data');
           req.resume(); // drain and discard — never buffered
           return;
@@ -251,8 +258,7 @@ export function createProxyServer(options = {}) {
         }
         fetchUrl(targetUrl, Buffer.concat(chunks), config, (error, response) => {
           if (error) {
-            res.writeHead(error.statusCode || 502, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: error.message }));
+            sendJson(res, error.statusCode || 502, { error: error.message });
             return;
           }
 
@@ -266,13 +272,11 @@ export function createProxyServer(options = {}) {
       req.on('error', () => {
         // Client aborted mid-upload; nothing useful left to send.
         if (!res.headersSent) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Request failed' }));
+          sendJson(res, 400, { error: 'Request failed' });
         }
       });
     } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
+      sendJson(res, 404, { error: 'Not found' });
     }
   });
 }

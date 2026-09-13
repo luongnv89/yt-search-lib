@@ -91,7 +91,6 @@ export class YouTubeClient {
     // JSON-encoding the parameter tuple keeps the key unambiguous: a
     // '_'-joined string collides when a parameter itself contains '_'.
     const cacheKey = JSON.stringify([query, limit, type]);
-    // Check cache
     if (this.cache) {
       const cached = this.cache.get(cacheKey);
       if (cached) {

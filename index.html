@@ -395,7 +395,7 @@
           const thumbnail = document.createElement('div');
           thumbnail.className = 'thumbnail-container';
           const img = document.createElement('img');
-          img.src = video.thumbnails[video.thumbnails.length - 1]?.url || '';
+          img.src = video.thumbnail_url || '';
           img.alt = video.title;
           img.loading = 'lazy';
           const badge = document.createElement('span');
