@@ -8,27 +8,92 @@
 import { ParseError } from './errors.js';
 
 /**
- * @typedef {Object} Thumbnail
+ * A thumbnail entry in an InnerTube `thumbnail` list.
+ * @typedef {object} Thumbnail
  * @property {string} url
  * @property {number} width
  * @property {number} height
  */
 
 /**
- * @typedef {Object} VideoResult
+ * A normalized search result. Videos, channels and playlists share one shape;
+ * fields beyond `type`/`id`/`title`/`thumbnails` depend on the result type.
+ * @typedef {object} VideoResult
+ * @property {'video'|'channel'|'playlist'} type
  * @property {string} id
- * @property {string} type - 'video', 'playlist', 'channel'
  * @property {string} title
  * @property {Thumbnail[]} thumbnails
- * @property {string} author
- * @property {string} duration
- * @property {string} publishedAt
- * @property {string} viewCount
+ * @property {string} [link] - Watch URL (videos only).
+ * @property {string} [thumbnail_url] - Largest thumbnail URL (videos only).
+ * @property {string} [author] - Channel name (videos and playlists).
+ * @property {string} [duration] - Formatted length (videos only).
+ * @property {string} [publishedAt] - Relative publish time (videos only).
+ * @property {string} [viewCount] - Formatted view count (videos only).
+ * @property {string[]} [badges] - Badge labels (videos only).
+ * @property {string} [description] - Description snippet (channels only).
+ * @property {string} [subscriberCount] - Formatted subscriber count (channels only).
+ * @property {string} [videoCount] - Formatted video count (channels and playlists).
+ */
+
+/**
+ * Raw InnerTube text node — either a `simpleText` leaf or a `runs` array.
+ * A bare string is tolerated for robustness.
+ * @typedef {string|{simpleText?: string, runs?: {text: string}[]}} InnerTubeText
+ */
+
+/**
+ * The subset of `videoRenderer` fields this parser reads.
+ * @typedef {object} InnerTubeVideoRenderer
+ * @property {string} videoId
+ * @property {InnerTubeText} [title]
+ * @property {{thumbnails?: Thumbnail[]}} [thumbnail]
+ * @property {InnerTubeText} [ownerText]
+ * @property {InnerTubeText} [lengthText]
+ * @property {InnerTubeText} [publishedTimeText]
+ * @property {InnerTubeText} [viewCountText]
+ * @property {{metadataBadgeRenderer?: {label?: string}}[]} [badges]
+ */
+
+/**
+ * The subset of `channelRenderer` fields this parser reads.
+ * @typedef {object} InnerTubeChannelRenderer
+ * @property {string} channelId
+ * @property {InnerTubeText} [title]
+ * @property {{thumbnails?: Thumbnail[]}} [thumbnail]
+ * @property {InnerTubeText} [descriptionSnippet]
+ * @property {InnerTubeText} [subscriberCountText]
+ * @property {InnerTubeText} [videoCountText]
+ */
+
+/**
+ * The subset of `playlistRenderer` fields this parser reads.
+ * @typedef {object} InnerTubePlaylistRenderer
+ * @property {string} playlistId
+ * @property {InnerTubeText} [title]
+ * @property {{thumbnails?: Thumbnail[]}[]} [thumbnails]
+ * @property {InnerTubeText} [videoCountText]
+ * @property {InnerTubeText} [longBylineText]
+ */
+
+/**
+ * A single entry inside `itemSectionRenderer.contents` — exactly one renderer
+ * key is populated per item.
+ * @typedef {object} InnerTubeItem
+ * @property {InnerTubeVideoRenderer} [videoRenderer]
+ * @property {InnerTubeChannelRenderer} [channelRenderer]
+ * @property {InnerTubePlaylistRenderer} [playlistRenderer]
+ */
+
+/**
+ * Raw InnerTube search response. The payload shape is guarded at runtime:
+ * `parseSearchResults` validates the section-list contents array before use.
+ * @typedef {object} InnerTubeResponse
+ * @property {object} [contents]
  */
 
 /**
  * Extract text from a run or simple text object.
- * @param {Object} data
+ * @param {InnerTubeText} [data]
  * @returns {string}
  */
 function getText(data) {
@@ -41,7 +106,7 @@ function getText(data) {
 
 /**
  * Parse a single video renderer item.
- * @param {Object} item
+ * @param {InnerTubeItem} item
  * @returns {VideoResult|null}
  */
 function parseVideoRenderer(item) {
@@ -65,8 +130,8 @@ function parseVideoRenderer(item) {
 
 /**
  * Parse a channel renderer item.
- * @param {Object} item
- * @returns {Object|null}
+ * @param {InnerTubeItem} item
+ * @returns {VideoResult|null}
  */
 function parseChannelRenderer(item) {
   const channel = item.channelRenderer;
@@ -85,8 +150,8 @@ function parseChannelRenderer(item) {
 
 /**
  * Parse a playlist renderer item.
- * @param {Object} item
- * @returns {Object|null}
+ * @param {InnerTubeItem} item
+ * @returns {VideoResult|null}
  */
 function parsePlaylistRenderer(item) {
   const playlist = item.playlistRenderer;
@@ -104,7 +169,7 @@ function parsePlaylistRenderer(item) {
 
 /**
  * Main parser function for search response.
- * @param {Object} response - Raw JSON response from InnerTube.
+ * @param {InnerTubeResponse} response - Raw JSON response from InnerTube.
  * @returns {VideoResult[]}
  * @throws {ParseError} When the response is not a recognizable search payload.
  *   A malformed response is surfaced as a typed error so it stays

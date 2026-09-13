@@ -14,17 +14,29 @@
  */
 class MemoryStorage {
   constructor() {
+    /** @type {Map<string, string>} */
     this._map = new Map();
   }
 
+  /**
+   * @param {string} key
+   * @returns {string|null}
+   */
   getItem(key) {
     return this._map.has(key) ? this._map.get(key) : null;
   }
 
+  /**
+   * @param {string} key
+   * @param {string} value
+   */
   setItem(key, value) {
     this._map.set(key, String(value));
   }
 
+  /**
+   * @param {string} key
+   */
   removeItem(key) {
     this._map.delete(key);
   }
@@ -75,9 +87,10 @@ export class LRUCache {
    *
    * @private
    * @param {string} operation - Label used in the warning.
-   * @param {Function} fn - Operation to attempt.
-   * @param {any} [fallback] - Value returned when the operation throws.
-   * @returns {any}
+   * @template T
+   * @param {function(): T} fn - Operation to attempt.
+   * @param {T} [fallback] - Value returned when the operation throws.
+   * @returns {T}
    */
   _guard(operation, fn, fallback) {
     try {
@@ -117,7 +130,7 @@ export class LRUCache {
   /**
    * Get an item from the cache.
    * @param {string} key
-   * @returns {any|null} The cached value or null if not found/expired.
+   * @returns {unknown} The cached value or null if not found/expired.
    */
   get(key) {
     const fullKey = `${this.namespace}${key}`;
@@ -159,7 +172,7 @@ export class LRUCache {
   /**
    * Set an item in the cache.
    * @param {string} key
-   * @param {any} value
+   * @param {unknown} value
    */
   set(key, value) {
     const fullKey = `${this.namespace}${key}`;

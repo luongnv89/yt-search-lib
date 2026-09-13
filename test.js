@@ -1736,3 +1736,24 @@ describe('cache key hygiene', () => {
     assert.strictEqual(r2[0].id, 'v2');
   });
 });
+
+// ============================================
+// Public export surface (F-DEAD-005)
+// ============================================
+
+describe('public export surface', () => {
+  it('re-exports Transport, LRUCache and parseSearchResults from the entry point', async () => {
+    const entry = await import('./src/index.js');
+    assert.strictEqual(entry.Transport, Transport);
+    assert.strictEqual(entry.LRUCache, LRUCache);
+    assert.strictEqual(entry.parseSearchResults, parseSearchResults);
+  });
+
+  it('keeps the documented exports on the entry point', async () => {
+    const entry = await import('./src/index.js');
+    assert.strictEqual(entry.YouTubeClient, YouTubeClient);
+    assert.strictEqual(entry.default, YouTubeClient);
+    assert.ok(Object.getPrototypeOf(entry.NetworkError) === entry.YtSearchError);
+    assert.ok(Object.getPrototypeOf(entry.ParseError) === entry.YtSearchError);
+  });
+});

@@ -4,9 +4,13 @@
  */
 
 import { build } from 'esbuild';
-import { readFileSync, writeFileSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+const tscBin = require.resolve('typescript/bin/tsc');
 
 async function buildPackage() {
   console.log('Building yt-search-lib...');
@@ -43,64 +47,12 @@ async function buildPackage() {
     },
   });
 
-  // Generate TypeScript declaration file
-  const declaration = `/**
- * Type definitions for yt-search-lib
- * Generated automatically - for reference only
- */
+  // Generate TypeScript declarations from the JSDoc-annotated source
+  // (F-DEAD-005). tsc emits `dist/index.d.ts` plus per-module files under
+  // `dist/lib/`, so the published types are derived from `src/` and cannot
+  // drift the way the hand-duplicated template here used to.
+  execFileSync(process.execPath, [tscBin, '-p', 'tsconfig.types.json'], { stdio: 'inherit' });
 
-export as namespace YouTubeSearch;
-
-export interface YouTubeClientOptions {
-  apiKey?: string;
-  clientContext?: {
-    clientName: string;
-    clientVersion: string;
-    hl?: string;
-    gl?: string;
-    utcOffsetMinutes?: number;
-  };
-  proxyUrl?: string;
-  useCache?: boolean;
-  cacheMaxAge?: number;
-  fetch?: typeof fetch;
-}
-
-export interface VideoResult {
-  type: 'video' | 'channel' | 'playlist';
-  id: string;
-  title: string;
-  link: string;
-  thumbnail_url: string;
-  thumbnails: Array<{ url: string; width: number; height: number }>;
-  author: string;
-  duration: string;
-  publishedAt: string;
-  viewCount: string;
-  badges?: string[];
-  description?: string;
-  subscriberCount?: string;
-  videoCount?: string;
-}
-
-export declare class YtSearchError extends Error {
-  constructor(message?: string, options?: { cause?: unknown });
-}
-
-export declare class NetworkError extends YtSearchError {}
-
-export declare class ParseError extends YtSearchError {}
-
-export declare class YouTubeClient {
-  constructor(options?: YouTubeClientOptions);
-  search(query: string, options?: { limit?: number; type?: 'video' | 'channel' | 'playlist' | 'all' }): Promise<VideoResult[]>;
-  clearCache(): void;
-}
-
-export default YouTubeClient;
-`;
-
-  writeFileSync('./dist/index.d.ts', declaration);
   console.log('Build complete! Output: dist/index.js, dist/index.cjs, dist/index.d.ts');
 }
 

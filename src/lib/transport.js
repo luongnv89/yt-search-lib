@@ -10,16 +10,21 @@ import { NetworkError, YtSearchError } from './errors.js';
 /** Requests are aborted after this when no timeout is configured (F-BUG-005). */
 const DEFAULT_TIMEOUT_MS = 30000;
 
+/**
+ * Configuration accepted by the {@link Transport} constructor.
+ * @typedef {object} TransportConfig
+ * @property {string} [proxyUrl] - Optional proxy URL (e.g. 'https://cors-anywhere.herokuapp.com/')
+ * @property {typeof fetch} [fetch] - Optional fetch polyfill/replacement
+ * @property {Record<string, string>} [headers] - Custom headers
+ * @property {number} [timeout] - Request timeout in ms (default 30000)
+ */
 export class Transport {
   /**
-   * @param {Object} config
-   * @param {string} [config.proxyUrl] - Optional proxy URL (e.g. 'https://cors-anywhere.herokuapp.com/')
-   * @param {function} [config.fetch] - Optional fetch polyfill/replacement
-   * @param {Object} [config.headers] - Custom headers
-   * @param {number} [config.timeout] - Request timeout in ms (default 30000)
+   * @param {TransportConfig} [config]
    */
   constructor(config = {}) {
     this.proxyUrl = config.proxyUrl || '';
+    /** @type {typeof fetch} */
     this.fetch = config.fetch || globalThis.fetch.bind(globalThis);
     this.headers = config.headers || {};
     this.timeoutMs =
@@ -29,8 +34,8 @@ export class Transport {
   /**
    * Make a POST request to InnerTube.
    * @param {string} url - Full URL.
-   * @param {Object} body - JSON body.
-   * @returns {Promise<Object>} JSON response.
+   * @param {Record<string, unknown>} body - JSON body.
+   * @returns {Promise<object>} JSON response.
    */
   async post(url, body) {
     const targetUrl = this.proxyUrl ? `${this.proxyUrl}${url}` : url;

@@ -1,0 +1,18 @@
+{
+  "//": "Emits dist/index.d.ts + dist/lib/*.d.ts from the JSDoc-annotated source. Invoked by build.js — keeps the published types derived from src/ so they cannot drift (F-DEAD-005).",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "target": "es2020",
+    "lib": ["es2020", "dom"],
+    "module": "es2020",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.js"]
+}
