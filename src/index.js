@@ -5,8 +5,11 @@ import {
   SEARCH_ENDPOINT,
 } from './lib/constants.js';
 import { LRUCache } from './lib/cache.js';
+import { YtSearchError } from './lib/errors.js';
 import { Transport } from './lib/transport.js';
 import { parseSearchResults } from './lib/parser.js';
+
+export { NetworkError, ParseError, YtSearchError } from './lib/errors.js';
 
 /**
  * Main Client for YouTube InnerTube Search.
@@ -47,9 +50,11 @@ export class YouTubeClient {
    * @returns {Promise<import('./lib/parser.js').VideoResult[]>}
    */
   async search(query, { limit = 5, type = 'video' } = {}) {
-    if (!query) throw new Error('Query is required');
+    if (!query) throw new YtSearchError('Query is required');
 
-    const cacheKey = `${query}_${limit}_${type}`;
+    // JSON-encoding the parameter tuple keeps the key unambiguous: a
+    // '_'-joined string collides when a parameter itself contains '_'.
+    const cacheKey = JSON.stringify([query, limit, type]);
     // Check cache
     if (this.cache) {
       const cached = this.cache.get(cacheKey);
@@ -83,8 +88,11 @@ export class YouTubeClient {
 
       return results;
     } catch (error) {
-      console.error('YouTube Search Error:', error);
-      throw error;
+      // Rejections always carry a typed error: errors the library already
+      // typed pass through untouched, anything else is wrapped.
+      if (error instanceof YtSearchError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new YtSearchError(message, { cause: error });
     }
   }
 

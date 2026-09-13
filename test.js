@@ -35,6 +35,7 @@ const { LRUCache } = await import('./src/lib/cache.js');
 const { Transport } = await import('./src/lib/transport.js');
 const { parseSearchResults } = await import('./src/lib/parser.js');
 const YouTubeClient = (await import('./src/index.js')).default;
+const { NetworkError, ParseError, YtSearchError } = await import('./src/index.js');
 const { isAllowedUrl } = await import('./proxy-allowlist.js');
 const { createProxyServer } = await import('./proxy-server.js');
 const { DEFAULT_ALLOWED_ORIGINS, parseAllowedOrigins, resolveAllowedOrigin } =
@@ -406,25 +407,21 @@ describe('Transport', () => {
 
 describe('Parser', () => {
   describe('parseSearchResults()', () => {
-    it('should return empty array for null response', () => {
-      const result = parseSearchResults(null);
-      assert.deepStrictEqual(result, []);
+    it('should throw ParseError for null response', () => {
+      assert.throws(() => parseSearchResults(null), ParseError);
     });
 
-    it('should return empty array for undefined response', () => {
-      const result = parseSearchResults(undefined);
-      assert.deepStrictEqual(result, []);
+    it('should throw ParseError for undefined response', () => {
+      assert.throws(() => parseSearchResults(undefined), ParseError);
     });
 
-    it('should return empty array for empty contents', () => {
-      const result = parseSearchResults({});
-      assert.deepStrictEqual(result, []);
+    it('should throw ParseError for empty contents', () => {
+      assert.throws(() => parseSearchResults({}), ParseError);
     });
 
-    it('should return empty array when contents structure is missing', () => {
+    it('should throw ParseError when contents structure is missing', () => {
       const response = { contents: {} };
-      const result = parseSearchResults(response);
-      assert.deepStrictEqual(result, []);
+      assert.throws(() => parseSearchResults(response), ParseError);
     });
 
     it('should parse video renderer correctly', () => {
@@ -1519,5 +1516,223 @@ describe('package exports', () => {
     const mod = require('./dist/index.cjs');
     assert.strictEqual(typeof mod.YouTubeClient, 'function');
     assert.strictEqual(typeof mod.default, 'function');
+  });
+});
+
+// ============================================
+// Typed error semantics (F-BUG-007/008/010)
+// ============================================
+
+describe('error semantics', () => {
+  describe('Transport network failure detection (F-BUG-007)', () => {
+    it('normalizes a Firefox-style network TypeError into NetworkError', async () => {
+      const transport = new Transport({
+        fetch: async () => {
+          throw new TypeError('NetworkError when attempting to fetch resource.');
+        },
+      });
+      await assert.rejects(
+        () => transport.post('https://example.com/x', {}),
+        (err) => {
+          assert.ok(err instanceof NetworkError);
+          assert.ok(err instanceof YtSearchError);
+          assert.strictEqual(err.name, 'NetworkError');
+          assert.match(err.message, /unable to reach the API/);
+          assert.ok(err.cause instanceof TypeError);
+          return true;
+        }
+      );
+    });
+
+    it('normalizes a Node/undici-style network TypeError into NetworkError', async () => {
+      const transport = new Transport({
+        fetch: async () => {
+          throw new TypeError('fetch failed', {
+            cause: new Error('connect ECONNREFUSED 127.0.0.1:443'),
+          });
+        },
+      });
+      await assert.rejects(() => transport.post('https://example.com/x', {}), NetworkError);
+    });
+
+    it('normalizes a cross-realm TypeError detected by name', async () => {
+      const transport = new Transport({
+        fetch: async () => {
+          // An error object from another realm fails `instanceof TypeError`.
+          const err = Object.create(null);
+          err.name = 'TypeError';
+          err.message = 'cross-realm failure';
+          throw err;
+        },
+      });
+      await assert.rejects(() => transport.post('https://example.com/x', {}), NetworkError);
+    });
+
+    it('lets non-network errors propagate unwrapped', async () => {
+      const boom = new Error('boom');
+      const transport = new Transport({
+        fetch: async () => {
+          throw boom;
+        },
+      });
+      await assert.rejects(
+        () => transport.post('https://example.com/x', {}),
+        (err) => err === boom
+      );
+    });
+
+    it('rejects a non-OK HTTP status with a typed error', async () => {
+      const transport = new Transport({
+        fetch: async () => ({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          text: async () => 'oops',
+        }),
+      });
+      await assert.rejects(
+        () => transport.post('https://example.com/x', {}),
+        (err) => err instanceof YtSearchError && /Request failed: 500/.test(err.message)
+      );
+    });
+  });
+
+  describe('Parser malformed vs empty results (F-BUG-008)', () => {
+    const emptyResponse = () => ({
+      contents: {
+        twoColumnSearchResultsRenderer: {
+          primaryContents: { sectionListRenderer: { contents: [] } },
+        },
+      },
+    });
+
+    it('distinguishes a malformed payload from a real empty result', () => {
+      assert.throws(() => parseSearchResults({ unexpected: true }), ParseError);
+      assert.deepStrictEqual(parseSearchResults(emptyResponse()), []);
+    });
+
+    it('throws ParseError with the original error on cause for mid-parse failures', () => {
+      const response = {
+        contents: {
+          twoColumnSearchResultsRenderer: {
+            primaryContents: {
+              sectionListRenderer: {
+                // Non-iterable item contents — throws inside the loop.
+                contents: [{ itemSectionRenderer: { contents: 42 } }],
+              },
+            },
+          },
+        },
+      };
+      assert.throws(
+        () => parseSearchResults(response),
+        (err) => err instanceof ParseError && err.cause instanceof TypeError
+      );
+    });
+  });
+
+  describe('YouTubeClient rejection typing (F-BUG-010)', () => {
+    it('rejects with a typed error and does not log to the console', async () => {
+      const errorSpy = mock.method(console, 'error', () => {});
+      const warnSpy = mock.method(console, 'warn', () => {});
+      try {
+        const client = new YouTubeClient({
+          useCache: false,
+          fetch: async () => {
+            throw new TypeError('fetch failed');
+          },
+        });
+        await assert.rejects(
+          () => client.search('x'),
+          (err) => err instanceof NetworkError && err instanceof YtSearchError
+        );
+        assert.strictEqual(errorSpy.mock.callCount(), 0);
+        assert.strictEqual(warnSpy.mock.callCount(), 0);
+      } finally {
+        errorSpy.mock.restore();
+        warnSpy.mock.restore();
+      }
+    });
+
+    it('wraps non-library failures in YtSearchError preserving message and cause', async () => {
+      const client = new YouTubeClient({
+        useCache: false,
+        fetch: async () => {
+          throw new Error('proxy exploded');
+        },
+      });
+      await assert.rejects(
+        () => client.search('x'),
+        (err) =>
+          err instanceof YtSearchError &&
+          !(err instanceof NetworkError) &&
+          err.message === 'proxy exploded' &&
+          err.cause instanceof Error
+      );
+    });
+
+    it('rejects invalid queries with a typed error', async () => {
+      const client = new YouTubeClient({ useCache: false });
+      await assert.rejects(
+        () => client.search(''),
+        (err) => err instanceof YtSearchError && err.message === 'Query is required'
+      );
+    });
+  });
+});
+
+// ============================================
+// Cache key hygiene (F-BUG-012)
+// ============================================
+
+describe('cache key hygiene', () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+  });
+
+  it('keeps distinct (query, limit, type) tuples in distinct entries', async () => {
+    let calls = 0;
+    const mockFetch = async () => {
+      calls++;
+      return {
+        ok: true,
+        json: async () => ({
+          contents: {
+            twoColumnSearchResultsRenderer: {
+              primaryContents: {
+                sectionListRenderer: {
+                  contents: [
+                    {
+                      itemSectionRenderer: {
+                        contents: [
+                          {
+                            videoRenderer: {
+                              videoId: `v${calls}`,
+                              title: { simpleText: `Video ${calls}` },
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }),
+      };
+    };
+    const client = new YouTubeClient({ fetch: mockFetch });
+
+    // Under the old '_' join, ('a',1,'2_all') and ('a_1',2,'all') both
+    // produced the key 'a_1_2_all' — the second search was served the
+    // first's cached (empty) result.
+    const r1 = await client.search('a', { limit: 1, type: '2_all' });
+    const r2 = await client.search('a_1', { limit: 2, type: 'all' });
+
+    assert.strictEqual(calls, 2, 'each distinct parameter tuple must trigger its own request');
+    assert.deepStrictEqual(r1, []);
+    assert.strictEqual(r2.length, 1);
+    assert.strictEqual(r2[0].id, 'v2');
   });
 });
