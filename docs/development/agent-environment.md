@@ -43,10 +43,12 @@ introduction (issue #22): **91.96%** lines / **81.58%** branches /
 
 ## Environment variables
 
-`.env.example` lists many variables, but **the code reads only `PORT`**
-(`proxy-server.js`, default `3000`) — see finding F-DEAD-003. Everything else
-in `.env.example` (`YOUTUBE_PROXY_URL`, `NODE_ENV`, rate-limit and CORS keys,
-…) is currently dead configuration: safe to leave unset.
+The code reads **`PORT`** plus the proxy hardening keys **`ALLOWED_ORIGINS`**,
+**`RATE_LIMIT_MAX`**, and **`RATE_LIMIT_WINDOW_MS`** (all in
+`proxy-server.js`). Everything else `.env.example` lists
+(`YOUTUBE_PROXY_URL`, `NODE_ENV`, the outdated
+`RATE_LIMIT_REQUESTS`/`RATE_LIMIT_WINDOW` names, …) is dead configuration —
+safe to leave unset.
 
 ## Integration tests — live network required
 
