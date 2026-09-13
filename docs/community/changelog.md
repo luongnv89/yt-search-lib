@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deployment guides consolidated
 - Community and development documentation
 
+### Fixed
+- Broken `require('yt-search-lib')` entry: `exports["."].require` and `main` now
+  resolve to a real CommonJS bundle (`dist/index.cjs`, emitted by `build.js`)
+  instead of the ESM-only `dist/index.js` (#19)
+
 ## [1.3.0] - 2024-01-12
 
 ### Added

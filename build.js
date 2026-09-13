@@ -27,6 +27,23 @@ async function buildPackage() {
     outdir: undefined, // Use outfile instead
   });
 
+  // Build CJS bundle — backs the `require` export condition and `main`.
+  // `dist/index.js` is ESM-only, so `require('yt-search-lib')` needs its own
+  // artifact (`.cjs` is always CommonJS regardless of `"type": "module"`).
+  await build({
+    entryPoints: ['./src/index.js'],
+    outfile: './dist/index.cjs',
+    bundle: true,
+    minify: true,
+    sourcemap: true,
+    target: ['es2020'],
+    format: 'cjs',
+    platform: 'browser',
+    banner: {
+      js: `// yt-search-lib v${packageJson.version}\n// License: MIT\n`,
+    },
+  });
+
   // Generate TypeScript declaration file
   const declaration = `/**
  * Type definitions for yt-search-lib
@@ -77,7 +94,7 @@ export default YouTubeClient;
 `;
 
   writeFileSync('./dist/index.d.ts', declaration);
-  console.log('Build complete! Output: dist/index.js, dist/index.d.ts');
+  console.log('Build complete! Output: dist/index.js, dist/index.cjs, dist/index.d.ts');
 }
 
 buildPackage().catch((err) => {

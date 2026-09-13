@@ -58,7 +58,7 @@ jobs:
 
       - name: Verify build artifacts
         run: |
-          if [ -f "dist/index.js" ] && [ -f "dist/index.d.ts" ]; then
+          if [ -f "dist/index.js" ] && [ -f "dist/index.cjs" ] && [ -f "dist/index.d.ts" ]; then
             echo "Build artifacts created successfully"
           else
             echo "Build artifacts missing!"
