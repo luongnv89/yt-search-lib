@@ -45,7 +45,7 @@ const { RateLimiter } = await import('./proxy-rate-limit.js');
 // LRUCache Tests
 // ============================================
 
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert';
 
 describe('LRUCache', () => {
@@ -189,6 +189,155 @@ describe('LRUCache', () => {
       assert.strictEqual(cache.get('key2'), null);
       assert.strictEqual(cache.get('key3'), null);
       assert.deepStrictEqual(cache.keys, []);
+    });
+  });
+
+  describe('storage fallback', () => {
+    afterEach(() => {
+      global.localStorage = localStorageMock;
+    });
+
+    it('should fall back to a working in-memory store when localStorage is absent', () => {
+      global.localStorage = undefined;
+      const warnSpy = mock.method(console, 'warn', () => {});
+      try {
+        const cache = new LRUCache('node_');
+        cache.set('key1', 'value1');
+        cache.set('key2', 'value2');
+        assert.deepStrictEqual(cache.keys, ['key1', 'key2']);
+
+        assert.strictEqual(cache.get('key1'), 'value1');
+        // get() promoted key1 to most-recently-used.
+        assert.deepStrictEqual(cache.keys, ['key2', 'key1']);
+
+        cache.remove('key1');
+        assert.strictEqual(cache.get('key1'), null);
+
+        cache.clear();
+        assert.deepStrictEqual(cache.keys, []);
+
+        // The fallback works silently — no warn spam in Node.js.
+        assert.strictEqual(warnSpy.mock.callCount(), 0);
+      } finally {
+        warnSpy.mock.restore();
+      }
+    });
+
+    it('should share the in-memory fallback across instances of one namespace', () => {
+      global.localStorage = undefined;
+      const writer = new LRUCache('shared_');
+      writer.set('key', 'shared-value');
+
+      const reader = new LRUCache('shared_');
+      assert.strictEqual(reader.get('key'), 'shared-value');
+    });
+
+    it('should enforce capacity on the in-memory fallback', () => {
+      global.localStorage = undefined;
+      const cache = new LRUCache('evict_', 3600000, 2);
+      cache.set('a', 1);
+      cache.set('b', 2);
+      cache.set('c', 3);
+
+      assert.strictEqual(cache.get('a'), null);
+      assert.strictEqual(cache.get('c'), 3);
+      assert.deepStrictEqual(cache.keys, ['b', 'c']);
+    });
+
+    it('should fall back to memory when localStorage is present but unusable', () => {
+      global.localStorage = {
+        getItem() {
+          throw new Error('broken storage');
+        },
+        setItem() {
+          throw new Error('broken storage');
+        },
+        removeItem() {
+          throw new Error('broken storage');
+        },
+      };
+
+      const cache = new LRUCache('broken_');
+      cache.set('key', 'value');
+      assert.strictEqual(cache.get('key'), 'value');
+    });
+
+    it('should persist the value before the key index', () => {
+      const calls = [];
+      const store = {};
+      global.localStorage = {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => {
+          calls.push(k);
+          store[k] = String(v);
+        },
+        removeItem: (k) => {
+          delete store[k];
+        },
+      };
+
+      const cache = new LRUCache('order_');
+      calls.length = 0; // ignore the detection probe write
+
+      cache.set('item1', 'value1');
+
+      const valueWrite = calls.indexOf('order_item1');
+      const indexWrite = calls.indexOf('order_keys');
+      assert.notStrictEqual(valueWrite, -1);
+      assert.notStrictEqual(indexWrite, -1);
+      assert.ok(valueWrite < indexWrite);
+    });
+
+    it('should not leave a dangling index entry when the index write fails', () => {
+      const store = {};
+      global.localStorage = {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => {
+          if (k === 'fail_keys') throw new Error('quota exceeded');
+          store[k] = String(v);
+        },
+        removeItem: (k) => {
+          delete store[k];
+        },
+      };
+      const warnSpy = mock.method(console, 'warn', () => {});
+      try {
+        const cache = new LRUCache('fail_');
+        cache.set('key1', 'value1');
+
+        // The value landed; the failed index write left no dangling entry.
+        assert.deepStrictEqual(cache.keys, []);
+        assert.strictEqual(cache.get('key1'), 'value1');
+      } finally {
+        warnSpy.mock.restore();
+      }
+    });
+
+    it('should degrade to no-ops with a warning when storage denies access', () => {
+      // Accepts the detection probe but refuses real traffic.
+      global.localStorage = {
+        getItem() {
+          throw new Error('denied');
+        },
+        setItem(key) {
+          if (key !== '__yt_search_probe__') throw new Error('denied');
+        },
+        removeItem() {},
+      };
+      const warnSpy = mock.method(console, 'warn', () => {});
+      try {
+        const cache = new LRUCache('denied_');
+        assert.doesNotThrow(() => {
+          cache.set('key', 'value');
+          assert.strictEqual(cache.get('key'), null);
+          cache.remove('key');
+          cache.clear();
+        });
+        // The shared guard caught real storage failures.
+        assert.ok(warnSpy.mock.callCount() > 0);
+      } finally {
+        warnSpy.mock.restore();
+      }
     });
   });
 });

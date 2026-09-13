@@ -1,12 +1,62 @@
 /**
- * Simple LRU (Least Recently Used) Cache using localStorage.
+ * Simple LRU (Least Recently Used) Cache.
+ *
+ * Persists entries in `localStorage` where available (browsers) and falls back
+ * to a shared in-memory store where Web Storage is missing or unusable
+ * (Node.js, sandboxed frames, disabled storage).
  *
  * @module cache
  */
 
+/**
+ * Minimal Storage-compatible backend backed by a `Map`.
+ * Used when no real `localStorage` is available.
+ */
+class MemoryStorage {
+  constructor() {
+    this._map = new Map();
+  }
+
+  getItem(key) {
+    return this._map.has(key) ? this._map.get(key) : null;
+  }
+
+  setItem(key, value) {
+    this._map.set(key, String(value));
+  }
+
+  removeItem(key) {
+    this._map.delete(key);
+  }
+}
+
+// A single process-wide fallback, mirroring the single shared `localStorage`.
+const memoryStorage = new MemoryStorage();
+
+/**
+ * Return a usable Web Storage backend, or the in-memory fallback.
+ * Probes with a real write because some environments expose a `localStorage`
+ * object whose accessors throw (private mode, denied storage, Node without
+ * `--localstorage-file`).
+ *
+ * @returns {Storage|MemoryStorage}
+ */
+function resolveStorage() {
+  try {
+    const store = globalThis.localStorage;
+    if (!store) return memoryStorage;
+    const probe = '__yt_search_probe__';
+    store.setItem(probe, '1');
+    store.removeItem(probe);
+    return store;
+  } catch {
+    return memoryStorage;
+  }
+}
+
 export class LRUCache {
   /**
-   * @param {string} namespace - Prefix for localStorage keys.
+   * @param {string} namespace - Prefix for storage keys.
    * @param {number} maxAge - Max age in milliseconds (default: 1 hour).
    * @param {number} capacity - Max number of items (default: 20).
    */
@@ -14,7 +64,28 @@ export class LRUCache {
     this.namespace = namespace;
     this.maxAge = maxAge;
     this.capacity = capacity;
+    this._storage = resolveStorage();
     this.keys = this._loadKeys();
+  }
+
+  /**
+   * Run a single storage operation under the shared failure guard.
+   * A throwing backend (quota, denied access) degrades to `fallback` with a
+   * warning instead of propagating into library callers.
+   *
+   * @private
+   * @param {string} operation - Label used in the warning.
+   * @param {Function} fn - Operation to attempt.
+   * @param {any} [fallback] - Value returned when the operation throws.
+   * @returns {any}
+   */
+  _guard(operation, fn, fallback) {
+    try {
+      return fn();
+    } catch (e) {
+      console.warn(`Cache ${operation} failed`, e);
+      return fallback;
+    }
   }
 
   /**
@@ -22,13 +93,14 @@ export class LRUCache {
    * @returns {string[]} List of cache keys in order of usage.
    */
   _loadKeys() {
-    try {
-      const keys = localStorage.getItem(`${this.namespace}keys`);
-      return keys ? JSON.parse(keys) : [];
-    } catch (e) {
-      console.warn('Failed to load cache keys', e);
-      return [];
-    }
+    return this._guard(
+      'load keys',
+      () => {
+        const keys = this._storage.getItem(`${this.namespace}keys`);
+        return keys ? JSON.parse(keys) : [];
+      },
+      []
+    );
   }
 
   /**
@@ -36,12 +108,10 @@ export class LRUCache {
    * @param {string[]} keys
    */
   _saveKeys(keys) {
-    try {
-      localStorage.setItem(`${this.namespace}keys`, JSON.stringify(keys));
+    this._guard('save keys', () => {
+      this._storage.setItem(`${this.namespace}keys`, JSON.stringify(keys));
       this.keys = keys;
-    } catch (e) {
-      console.warn('Failed to save cache keys', e);
-    }
+    });
   }
 
   /**
@@ -51,24 +121,25 @@ export class LRUCache {
    */
   get(key) {
     const fullKey = `${this.namespace}${key}`;
-    try {
-      const itemStr = localStorage.getItem(fullKey);
-      if (!itemStr) return null;
+    return this._guard(
+      'get',
+      () => {
+        const itemStr = this._storage.getItem(fullKey);
+        if (!itemStr) return null;
 
-      const item = JSON.parse(itemStr);
-      const now = Date.now();
+        const item = JSON.parse(itemStr);
+        const now = Date.now();
 
-      if (now - item.timestamp > this.maxAge) {
-        this.remove(key);
-        return null;
-      }
+        if (now - item.timestamp > this.maxAge) {
+          this.remove(key);
+          return null;
+        }
 
-      this._promoteKey(key);
-      return item.value;
-    } catch (e) {
-      console.warn('Cache get failed', e);
-      return null;
-    }
+        this._promoteKey(key);
+        return item.value;
+      },
+      null
+    );
   }
 
   /**
@@ -97,23 +168,22 @@ export class LRUCache {
       timestamp: Date.now(),
     };
 
-    try {
-      const keyIndex = this.keys.indexOf(key);
-      if (keyIndex > -1) {
-        this.keys.splice(keyIndex, 1);
-      }
-      this.keys.push(key);
+    this._guard('set', () => {
+      // Compute the next index without mutating `this.keys` yet.
+      const keys = this.keys.filter((k) => k !== key);
+      keys.push(key);
 
-      while (this.keys.length > this.capacity) {
-        const oldestKey = this.keys.shift();
-        localStorage.removeItem(`${this.namespace}${oldestKey}`);
+      // Evict oldest entries' items while over capacity.
+      const evicted = keys.splice(0, Math.max(0, keys.length - this.capacity));
+      for (const oldestKey of evicted) {
+        this._storage.removeItem(`${this.namespace}${oldestKey}`);
       }
 
-      this._saveKeys(this.keys);
-      localStorage.setItem(fullKey, JSON.stringify(item));
-    } catch (e) {
-      console.warn('Cache set failed', e);
-    }
+      // Persist the value before the key index so a failed write never
+      // leaves an index entry pointing at a missing item.
+      this._storage.setItem(fullKey, JSON.stringify(item));
+      this._saveKeys(keys);
+    });
   }
 
   /**
@@ -121,27 +191,22 @@ export class LRUCache {
    * @param {string} key
    */
   remove(key) {
-    try {
-      localStorage.removeItem(`${this.namespace}${key}`);
-      const newKeys = this.keys.filter((k) => k !== key);
-      this._saveKeys(newKeys);
-    } catch (e) {
-      console.warn('Cache remove failed', e);
-    }
+    this._guard('remove', () => {
+      this._storage.removeItem(`${this.namespace}${key}`);
+      this._saveKeys(this.keys.filter((k) => k !== key));
+    });
   }
 
   /**
    * Clear all items in this namespace.
    */
   clear() {
-    try {
+    this._guard('clear', () => {
       this.keys.forEach((key) => {
-        localStorage.removeItem(`${this.namespace}${key}`);
+        this._storage.removeItem(`${this.namespace}${key}`);
       });
-      localStorage.removeItem(`${this.namespace}keys`);
+      this._storage.removeItem(`${this.namespace}keys`);
       this.keys = [];
-    } catch (e) {
-      console.warn('Cache clear failed', e);
-    }
+    });
   }
 }
