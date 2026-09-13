@@ -2,7 +2,7 @@
   "name": "yt-search-lib",
   "version": "1.3.0",
   "description": "Premium client-side YouTube search library using InnerTube API patterns. No API key required.",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
   "browser": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
