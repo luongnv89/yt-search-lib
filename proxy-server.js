@@ -9,6 +9,8 @@
  *
  * Environment:
  *   PORT                  - listen port (default 3000)
+ *   HOST                  - bind address (default all interfaces); set to
+ *                           127.0.0.1 when a fronting proxy terminates TLS
  *   ALLOWED_ORIGINS       - comma-separated Origin allowlist; unset defaults to
  *                           local dev origins, set-but-empty denies all origins
  *   RATE_LIMIT_MAX        - requests per window per client (default 100)
@@ -23,11 +25,13 @@ import { parseAllowedOrigins, resolveAllowedOrigin } from './proxy-cors.js';
 import { RateLimiter } from './proxy-rate-limit.js';
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || undefined;
 
 /** Request bodies larger than this are rejected with 413 (F-BUG-004). */
 const MAX_REQUEST_BODY_BYTES = 1024 * 1024; // 1 MB
-/** Upstream responses larger than this are rejected with 502 (F-BUG-004). */
-const MAX_RESPONSE_BODY_BYTES = 1024 * 1024; // 1 MB
+/** Upstream responses larger than this are rejected with 502 (F-BUG-004).
+ * InnerTube search responses are ~2 MB, so the cap must comfortably exceed that. */
+const MAX_RESPONSE_BODY_BYTES = 8 * 1024 * 1024; // 8 MB
 /** Upstream requests are aborted after this (F-BUG-005). */
 const UPSTREAM_TIMEOUT_MS = 15000;
 const RATE_LIMIT_MAX = 100;
@@ -284,7 +288,7 @@ export function createProxyServer(options = {}) {
 // Only listen when invoked directly (`node proxy-server.js`), not on import.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const server = createProxyServer();
-  server.listen(PORT, () => {
+  server.listen(PORT, HOST, () => {
     /* eslint-disable no-console */
     console.log(`CORS Proxy Server running on http://localhost:${PORT}`);
     console.log(`Use proxy URL: http://localhost:${PORT}/proxy?url=`);
