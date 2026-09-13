@@ -25,3 +25,12 @@ coordinate disclosure after a fix is available.
 
 For general security hardening notes on the proxy deployment, see
 [docs/deployment/security.md](docs/deployment/security.md).
+
+## Accepted Risks
+
+- **InnerTube `?key=` query parameter.** The library appends the InnerTube API
+  key to every request URL (`?key=…`), so it can appear in proxy and server
+  access logs. This is an accepted risk: the default key is not a credential —
+  it is a public value embedded in YouTube's own client-side JavaScript. If you
+  pass a custom `apiKey`, it inherits the same exposure — do not use a key you
+  need to keep secret.
