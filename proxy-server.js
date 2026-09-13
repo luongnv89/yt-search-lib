@@ -32,6 +32,9 @@ const MAX_RESPONSE_BODY_BYTES = 1024 * 1024; // 1 MB
 const UPSTREAM_TIMEOUT_MS = 15000;
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60000;
+/** User-Agent sent on upstream InnerTube requests (F-CLEAN-004). */
+const UPSTREAM_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 function intFromEnv(value, fallback) {
   const parsed = Number(value);
@@ -59,8 +62,7 @@ function fetchUrl(targetUrl, body, config, callback) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'User-Agent': UPSTREAM_USER_AGENT,
     },
   };
 
