@@ -239,7 +239,7 @@ async function runIntegrationTests() {
 
 // Run tests
 runIntegrationTests()
-  .then(({ _passed, failed }) => {
+  .then(({ failed }) => {
     process.exit(failed > 0 ? 1 : 0);
   })
   .catch((error) => {

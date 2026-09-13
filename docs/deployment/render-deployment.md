@@ -460,12 +460,11 @@ yt-search-lib/
 ├── package.json                   # Dependencies
 ├── src/
 │   ├── index.js
-│   ├── lib/
-│   │   ├── cache.js
-│   │   ├── constants.js
-│   │   ├── parser.js
-│   │   └── transport.js
-│   └── types.js
+│   └── lib/
+│       ├── cache.js
+│       ├── constants.js
+│       ├── parser.js
+│       └── transport.js
 ├── .gitignore
 ├── README.md
 └── LICENSE

@@ -24,7 +24,6 @@ commands verbatim; this file deliberately does not repeat them.
 
 - `src/index.js` — public entry; `src/lib/` — internals (`cache.js`,
   `constants.js`, `parser.js`, `transport.js`).
-- `src/types.js` — type surface shipped as `dist/index.d.ts`.
 - `test.js` — offline unit suite; `integration*.test.js` — live-network
   checks (manual only).
 - `proxy-server.js` — local CORS proxy; `build.js` — esbuild script;
