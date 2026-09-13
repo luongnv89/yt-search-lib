@@ -31,7 +31,7 @@ const client = new YouTubeClient({
 3.  **Rate Limiting**: If using a public proxy, you might be rate-limited by YouTube or the proxy provider.
 
 **Debugging**:
-- Enable verbose logging in `src/lib/transport.js` to see the raw response from the proxy.
+- Inspect the `cause` property on the rejected `NetworkError`/`YtSearchError` — it carries the underlying fetch failure returned by the proxy.
 - Check if the response contains a `contents` field. If the structure has changed, you may need to update the selectors in `parseSearchResults` within `src/lib/parser.js`.
 
 ## 3. Network Error (`NetworkError`)
