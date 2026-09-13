@@ -24,6 +24,7 @@ export class Transport {
    */
   constructor(config = {}) {
     this.proxyUrl = config.proxyUrl || '';
+    /** @type {typeof fetch} */
     this.fetch = config.fetch || globalThis.fetch.bind(globalThis);
     this.headers = config.headers || {};
     this.timeoutMs =

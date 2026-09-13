@@ -14,17 +14,29 @@
  */
 class MemoryStorage {
   constructor() {
+    /** @type {Map<string, string>} */
     this._map = new Map();
   }
 
+  /**
+   * @param {string} key
+   * @returns {string|null}
+   */
   getItem(key) {
     return this._map.has(key) ? this._map.get(key) : null;
   }
 
+  /**
+   * @param {string} key
+   * @param {string} value
+   */
   setItem(key, value) {
     this._map.set(key, String(value));
   }
 
+  /**
+   * @param {string} key
+   */
   removeItem(key) {
     this._map.delete(key);
   }
