@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  schedule:
+    # Weekly opt-in leg for the live integration suite
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -94,3 +98,50 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  # Live integration suite — hits real YouTube through a CORS proxy, so it is
+  # deliberately opt-in: it runs only on manual dispatch or the weekly
+  # schedule, never on push/PR. The test files themselves also require
+  # RUN_INTEGRATION=1, so this job cannot run them by accident.
+  integration:
+    name: Integration (live YouTube)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    env:
+      RUN_INTEGRATION: '1'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests (public proxy)
+        run: npm run test:integration
+
+      - name: Start local CORS proxy
+        run: npm run proxy:start &
+
+      - name: Wait for the local proxy
+        run: |
+          # Any HTTP status proves the listener is up; /proxy with no url
+          # answers 400, which is fine — the allowlist only serves YouTube.
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000/proxy" || true)
+            if [ "$code" != "000" ]; then
+              echo "Local proxy is up (HTTP $code)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Local proxy did not come up"
+          exit 1
+
+      - name: Run integration tests (local proxy)
+        run: npm run test:integration:proxy
