@@ -77,6 +77,13 @@ export class YouTubeClient {
     if (options.useCache !== false) {
       this.cache = new LRUCache('yt_search_', options.cacheMaxAge);
     }
+
+    /**
+     * Pending searches keyed by cache key — in-flight dedup (F-PERF-002).
+     * Entries remove themselves when the request settles.
+     * @type {Map<string, Promise<VideoResult[]>>}
+     */
+    this._inflight = new Map();
   }
 
   /**
@@ -98,6 +105,29 @@ export class YouTubeClient {
       }
     }
 
+    // Concurrent identical searches share the pending request instead of
+    // issuing a second POST (F-PERF-002). The entry removes itself when the
+    // request settles, so a later search re-fetches — or hits the cache the
+    // settled request just warmed.
+    let request = this._inflight.get(cacheKey);
+    if (!request) {
+      request = this._fetchResults(query, { limit, type }, cacheKey).finally(() => {
+        this._inflight.delete(cacheKey);
+      });
+      this._inflight.set(cacheKey, request);
+    }
+    return request;
+  }
+
+  /**
+   * Fetch, normalize and cache one search request.
+   * @private
+   * @param {string} query - The search query.
+   * @param {SearchOptions} options - Normalized search options.
+   * @param {string} cacheKey - Key under which the result is cached.
+   * @returns {Promise<VideoResult[]>}
+   */
+  async _fetchResults(query, { limit, type }, cacheKey) {
     const url = `${INNERTUBE_BASE_URL}${SEARCH_ENDPOINT}?key=${this.apiKey}`;
 
     const body = {
@@ -109,7 +139,9 @@ export class YouTubeClient {
 
     try {
       const rawData = await this.transport.post(url, body);
-      let results = parseSearchResults(rawData);
+      // With type 'all' no post-filter runs, so the parser can stop walking
+      // once `limit` results are collected (F-PERF-003).
+      let results = parseSearchResults(rawData, type === 'all' ? limit : undefined);
 
       if (type !== 'all') {
         results = results.filter((item) => item.type === type);

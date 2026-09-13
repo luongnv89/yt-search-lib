@@ -68,6 +68,15 @@
         }
       }
 
+      /* F-PERF-004: a perpetual animation over a 150px blur is a constant
+         GPU compositing cost and a vestibular trigger — drop it when the
+         user asks for reduced motion; the static gradient stays. */
+      @media (prefers-reduced-motion: reduce) {
+        .blob-2 {
+          animation: none;
+        }
+      }
+
       .container {
         max-width: 1200px;
         margin: 0 auto;
