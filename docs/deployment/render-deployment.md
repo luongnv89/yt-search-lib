@@ -78,8 +78,8 @@ services:
 > header. Set it to a comma-separated list of the exact origins that may use
 > the proxy (e.g. `https://yourdomain.com`). The proxy also enforces a basic
 > per-client rate limit (`RATE_LIMIT_MAX` requests per
-> `RATE_LIMIT_WINDOW_MS`) and 1 MB caps on request and upstream-response
-> bodies.
+> `RATE_LIMIT_WINDOW_MS`) and body caps (1 MB request, 8 MB upstream
+> response).
 
 Save this in the root directory:
 ```
