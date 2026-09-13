@@ -305,6 +305,32 @@
         }
       }
 
+      .retry-btn {
+        margin-top: 1rem;
+        background: var(--gradient-primary);
+        border: none;
+        color: white;
+        padding: 0.8rem 2rem;
+        border-radius: 100px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      .retry-btn:hover {
+        transform: scale(1.05);
+      }
+
+      .retry-btn:active {
+        transform: scale(0.95);
+      }
+
+      .retry-btn:focus-visible {
+        outline: 2px solid var(--accent-color);
+        outline-offset: 3px;
+      }
+
       /* Responsive adjustments */
       @media (max-width: 768px) {
         h1 {
@@ -352,7 +378,7 @@
 
       <div id="loader" class="loader">
         <div class="spinner"></div>
-        <p>Scanning YouTube InnerTube...</p>
+        <p>Searching YouTube...</p>
       </div>
 
       <div id="results" class="results-grid"></div>
@@ -397,7 +423,7 @@
 
           if (results.length === 0) {
             showMessage(
-              'No results found. Try a different query or check the proxy.',
+              'No results found. Try a different query or check your connection.',
               'var(--text-secondary)'
             );
           } else {
@@ -408,13 +434,44 @@
           showMessage(
             `Error: ${error.message}.`,
             '#ff4444',
-            'This usually happens when the CORS proxy is down or blocked.'
+            'This usually happens when the connection is unavailable or blocked.',
+            query
           );
         } finally {
           loader.style.display = 'none';
           searchInput.disabled = false;
           updateSearchButton();
         }
+      }
+
+      // Renders a status/error line inside the results grid. All dynamic text
+      // goes through textContent, so no markup is ever built from it.
+      function showMessage(text, color, hint, retryQuery) {
+        const p = document.createElement('p');
+        p.style.textAlign = 'center';
+        p.style.gridColumn = '1/-1';
+        p.style.color = color;
+        p.textContent = text;
+        if (hint) {
+          const small = document.createElement('small');
+          small.textContent = hint;
+          p.append(document.createElement('br'), small);
+        }
+        if (retryQuery) {
+          // Re-runs the exact query that failed, even if the input was
+          // edited after the error appeared.
+          const retryBtn = document.createElement('button');
+          retryBtn.type = 'button';
+          retryBtn.className = 'retry-btn';
+          retryBtn.textContent = 'Retry';
+          retryBtn.addEventListener('click', () => {
+            searchInput.value = retryQuery;
+            updateSearchButton();
+            performSearch();
+          });
+          p.append(document.createElement('br'), retryBtn);
+        }
+        resultsContainer.replaceChildren(p);
       }
 
       function renderResults(videos) {
@@ -463,22 +520,6 @@
           return card;
         });
         resultsContainer.replaceChildren(...cards);
-      }
-
-      // Renders a status/error line inside the results grid. All dynamic text
-      // goes through textContent, so no markup is ever built from it.
-      function showMessage(text, color, hint) {
-        const p = document.createElement('p');
-        p.style.textAlign = 'center';
-        p.style.gridColumn = '1/-1';
-        p.style.color = color;
-        p.textContent = text;
-        if (hint) {
-          const small = document.createElement('small');
-          small.textContent = hint;
-          p.append(document.createElement('br'), small);
-        }
-        resultsContainer.replaceChildren(p);
       }
 
       searchBtn.addEventListener('click', performSearch);
