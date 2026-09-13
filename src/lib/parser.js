@@ -170,13 +170,18 @@ function parsePlaylistRenderer(item) {
 /**
  * Main parser function for search response.
  * @param {InnerTubeResponse} response - Raw JSON response from InnerTube.
+ * @param {number} [limit] - Stop walking renderers once this many results
+ *   have been collected (F-PERF-003). Only safe when the caller applies no
+ *   post-filter — e.g. `type === 'all'` — since filtered-out items would
+ *   otherwise count against the cap. Omit to parse the full response.
  * @returns {VideoResult[]}
  * @throws {ParseError} When the response is not a recognizable search payload.
  *   A malformed response is surfaced as a typed error so it stays
  *   distinguishable from a real empty result set (`[]`).
  */
-export function parseSearchResults(response) {
+export function parseSearchResults(response, limit) {
   const results = [];
+  const maxResults = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : Infinity;
 
   try {
     const contents =
@@ -204,6 +209,10 @@ export function parseSearchResults(response) {
 
           if (parsedItem) {
             results.push(parsedItem);
+            // Early exit: renderers past the cap are never touched.
+            if (results.length >= maxResults) {
+              return results;
+            }
           }
         }
       }

@@ -36,11 +36,14 @@ The following flow illustrates how a search query is processed:
 2. **Cache Check**: `YouTubeClient` generates a unique cache key and checks the `LRUCache`.
    - *Hit*: Returns results immediately.
    - *Miss*: Continues to fetch.
-3. **InnerTube Request**: `YouTubeClient` constructs the request body with the user's query and the required `clientContext`.
-4. **Fetch via Proxy**: `Transport` sends a POST request to the InnerTube search endpoint, optionally routing through a CORS proxy.
-5. **Parse & Normalize**: `Parser` receives the raw JSON response, traverses the tree, and extracts a flat array of result objects.
-6. **Cache Update**: The normalized results are stored in the `LRUCache`.
-7. **Output**: The filtered and limited results are returned as a Promise.
+3. **In-Flight Dedup**: An identical concurrent search joins the pending
+   request instead of issuing a second POST; the shared entry is dropped as
+   soon as the request settles.
+4. **InnerTube Request**: `YouTubeClient` constructs the request body with the user's query and the required `clientContext`.
+5. **Fetch via Proxy**: `Transport` sends a POST request to the InnerTube search endpoint, optionally routing through a CORS proxy.
+6. **Parse & Normalize**: `Parser` receives the raw JSON response, traverses the tree, and extracts a flat array of result objects.
+7. **Cache Update**: The normalized results are stored in the `LRUCache`.
+8. **Output**: The filtered and limited results are returned as a Promise.
 
 ---
 

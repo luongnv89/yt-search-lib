@@ -157,6 +157,12 @@ export class LRUCache {
 
   /**
    * Move key to the end of the list to mark as recently used.
+   * Recency is tracked in memory only (F-PERF-001): a read hit must not
+   * rewrite the whole key index to storage. The promoted order rides along
+   * on the next mutation — `set`, `remove` and `clear` all persist the
+   * index — so storage stays at worst one mutation behind. A session that
+   * only reads therefore never pays a write, at the price of a slightly
+   * staler persisted order on reload.
    * @private
    * @param {string} key
    */
@@ -165,7 +171,6 @@ export class LRUCache {
     if (keyIndex > -1) {
       this.keys.splice(keyIndex, 1);
       this.keys.push(key);
-      this._saveKeys(this.keys);
     }
   }
 

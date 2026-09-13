@@ -355,6 +355,38 @@ describe('LRUCache', () => {
       }
     });
 
+    it('should not write to storage on a cache hit (F-PERF-001)', () => {
+      const calls = [];
+      const store = {};
+      global.localStorage = {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => {
+          calls.push(k);
+          store[k] = String(v);
+        },
+        removeItem: (k) => {
+          delete store[k];
+        },
+      };
+
+      const cache = new LRUCache('hit_', 3600000, 2);
+      cache.set('a', 1);
+      cache.set('b', 2);
+      calls.length = 0; // ignore the detection probe and the set() writes
+
+      // A hit still promotes in memory — it just must not persist it.
+      assert.strictEqual(cache.get('a'), 1);
+      assert.deepStrictEqual(calls, [], 'a cache hit must not write to storage');
+
+      // The in-memory promotion rides along on the next mutation: 'a' is
+      // now most-recent, so 'b' is the eviction victim and the persisted
+      // index reflects the promoted order.
+      cache.set('c', 3);
+      assert.strictEqual(cache.get('b'), null);
+      assert.strictEqual(cache.get('a'), 1);
+      assert.deepStrictEqual(JSON.parse(store['hit_keys']), ['a', 'c']);
+    });
+
     it('should degrade to no-ops with a warning when storage denies access', () => {
       // Accepts the detection probe but refuses real traffic.
       global.localStorage = {
@@ -598,6 +630,49 @@ describe('Parser', () => {
       const results = parseSearchResults(response);
       assert.deepStrictEqual(results, []);
     });
+
+    it('should stop walking renderers once limit results are collected (F-PERF-003)', () => {
+      const response = searchResponseWithItems([
+        { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+        {
+          // A renderer the walk must never reach: reading it throws.
+          get videoRenderer() {
+            throw new Error('renderer beyond the limit must not be read');
+          },
+        },
+        { videoRenderer: { videoId: 'v3', title: { simpleText: 'Video 3' } } },
+      ]);
+
+      const results = parseSearchResults(response, 1);
+      assert.strictEqual(results.length, 1);
+      assert.strictEqual(results[0].id, 'v1');
+    });
+
+    it('should parse the full response when limit is omitted or unusable', () => {
+      const response = searchResponseWithItems([
+        { videoRenderer: { videoId: 'v1' } },
+        { videoRenderer: { videoId: 'v2' } },
+      ]);
+
+      assert.strictEqual(parseSearchResults(response).length, 2);
+      assert.strictEqual(parseSearchResults(response, undefined).length, 2);
+      assert.strictEqual(parseSearchResults(response, 0).length, 2);
+      assert.strictEqual(parseSearchResults(response, -1).length, 2);
+      assert.strictEqual(parseSearchResults(response, Infinity).length, 2);
+      assert.strictEqual(parseSearchResults(response, 99).length, 2);
+    });
+
+    it('should treat a fractional limit as its floor', () => {
+      const response = searchResponseWithItems([
+        { videoRenderer: { videoId: 'v1' } },
+        { videoRenderer: { videoId: 'v2' } },
+        { videoRenderer: { videoId: 'v3' } },
+      ]);
+
+      const results = parseSearchResults(response, 2.5);
+      assert.strictEqual(results.length, 2);
+      assert.strictEqual(results[1].id, 'v2');
+    });
   });
 });
 
@@ -690,6 +765,146 @@ describe('YouTubeClient', () => {
       assert.strictEqual(results.length, 2);
       assert.strictEqual(results[0].id, 'v1');
       assert.strictEqual(results[1].id, 'v2');
+    });
+
+    it('should apply the limit across mixed types when type is all (F-PERF-003)', async () => {
+      const mockFetch = async () =>
+        new MockResponse(
+          JSON.stringify(
+            searchResponseWithItems([
+              { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+              {
+                channelRenderer: { channelId: 'c1', title: { simpleText: 'Channel 1' } },
+              },
+              { videoRenderer: { videoId: 'v3', title: { simpleText: 'Video 3' } } },
+            ])
+          )
+        );
+
+      const client = new YouTubeClient({ useCache: false, fetch: mockFetch });
+      const results = await client.search('test', { limit: 2, type: 'all' });
+      assert.strictEqual(results.length, 2);
+      assert.strictEqual(results[0].id, 'v1');
+      assert.strictEqual(results[1].id, 'c1');
+    });
+  });
+
+  describe('in-flight dedup (F-PERF-002)', () => {
+    /** A fetch whose response stays pending until `release()` is called. */
+    const gatedFetch = (calls, responseFactory) => {
+      let release;
+      const gate = new Promise((r) => {
+        release = r;
+      });
+      const fetch = async () => {
+        calls.count++;
+        await gate;
+        return responseFactory();
+      };
+      return { fetch, release };
+    };
+
+    const singleVideoResponse = () =>
+      new MockResponse(
+        JSON.stringify(
+          searchResponseWithItems([
+            { videoRenderer: { videoId: 'v1', title: { simpleText: 'Video 1' } } },
+          ])
+        )
+      );
+
+    it('should share one request across concurrent identical searches', async () => {
+      const calls = { count: 0 };
+      const { fetch: mockFetch, release } = gatedFetch(calls, singleVideoResponse);
+      const client = new YouTubeClient({ useCache: false, fetch: mockFetch });
+
+      const p1 = client.search('dup');
+      const p2 = client.search('dup');
+      release();
+      const [r1, r2] = await Promise.all([p1, p2]);
+
+      assert.strictEqual(calls.count, 1, 'concurrent identical searches must share one request');
+      assert.deepStrictEqual(r1, r2);
+      assert.strictEqual(r1[0].id, 'v1');
+    });
+
+    it('should not dedup searches with different parameter tuples', async () => {
+      const calls = { count: 0 };
+      const { fetch: mockFetch, release } = gatedFetch(calls, singleVideoResponse);
+      const client = new YouTubeClient({ useCache: false, fetch: mockFetch });
+
+      const p1 = client.search('dup');
+      const p2 = client.search('dup', { limit: 10 });
+      const p3 = client.search('other');
+      release();
+      await Promise.all([p1, p2, p3]);
+
+      assert.strictEqual(
+        calls.count,
+        3,
+        'distinct (query, limit, type) tuples fetch independently'
+      );
+    });
+
+    it('should fetch again once the shared request has settled', async () => {
+      const calls = { count: 0 };
+      const mockFetch = async () => {
+        calls.count++;
+        return singleVideoResponse();
+      };
+      const client = new YouTubeClient({ useCache: false, fetch: mockFetch });
+
+      await client.search('dup');
+      await client.search('dup');
+      assert.strictEqual(calls.count, 2, 'dedup covers only in-flight requests, not later ones');
+    });
+
+    it('should let every caller observe the same rejection and then recover', async () => {
+      const calls = { count: 0 };
+      let release;
+      const gate = new Promise((r) => {
+        release = r;
+      });
+      const mockFetch = async () => {
+        calls.count++;
+        await gate;
+        throw new TypeError('fetch failed');
+      };
+      const client = new YouTubeClient({ useCache: false, fetch: mockFetch });
+
+      const p1 = client.search('dup');
+      const p2 = client.search('dup');
+      release();
+      await assert.rejects(p1, NetworkError);
+      await assert.rejects(p2, NetworkError);
+      assert.strictEqual(calls.count, 1);
+
+      // The settled rejection is evicted — a retry issues a new request.
+      const retryFetch = async () => {
+        calls.count++;
+        return singleVideoResponse();
+      };
+      client.transport.fetch = retryFetch;
+      const results = await client.search('dup');
+      assert.strictEqual(calls.count, 2);
+      assert.strictEqual(results[0].id, 'v1');
+    });
+
+    it('should warm the cache for later searches after a shared request', async () => {
+      const calls = { count: 0 };
+      const { fetch: mockFetch, release } = gatedFetch(calls, singleVideoResponse);
+      const client = new YouTubeClient({ fetch: mockFetch }); // cache enabled
+
+      const p1 = client.search('dup');
+      const p2 = client.search('dup');
+      release();
+      await Promise.all([p1, p2]);
+      assert.strictEqual(calls.count, 1);
+
+      // A third, sequential search is served from the cache — no new fetch.
+      const r3 = await client.search('dup');
+      assert.strictEqual(calls.count, 1);
+      assert.strictEqual(r3[0].id, 'v1');
     });
   });
 
@@ -1332,6 +1547,22 @@ describe('index.html demo page', () => {
     assert.ok(
       !/InnerTube|CORS proxy/.test(html),
       'user-facing copy must not mention InnerTube or the CORS proxy'
+    );
+  });
+
+  it('gates the perpetual blob animation behind prefers-reduced-motion (F-PERF-004)', async () => {
+    const html = await loadHtml();
+    assert.match(
+      html,
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)/,
+      'a prefers-reduced-motion media block must exist'
+    );
+    // The reduced-motion rule is the only .blob-2 rule allowed to set
+    // `animation: none` — the base rule keeps `animation: pulse …`.
+    assert.match(
+      html,
+      /\.blob-2\s*\{[^}]*animation:\s*none/,
+      'the blob pulse must be disabled under reduced motion'
     );
   });
 

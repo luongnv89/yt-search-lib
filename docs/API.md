@@ -105,8 +105,10 @@ re-exports the building blocks for advanced use:
 import { parseSearchResults, Transport, LRUCache } from 'yt-search-lib';
 ```
 
-- `parseSearchResults(response)` — normalize a raw InnerTube search response
-  into `VideoResult[]` (throws `ParseError` on malformed payloads).
+- `parseSearchResults(response, [limit])` — normalize a raw InnerTube search
+  response into `VideoResult[]` (throws `ParseError` on malformed payloads).
+  Passing a positive `limit` stops the renderer walk early once that many
+  results are collected — only when no post-filter applies.
 - `Transport` — the fetch/proxy layer used by `YouTubeClient`.
 - `LRUCache` — the storage-backed cache used by `YouTubeClient`.
 
