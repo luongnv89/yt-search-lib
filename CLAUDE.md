@@ -46,12 +46,15 @@ proxy hardening keys **`ALLOWED_ORIGINS`**, **`RATE_LIMIT_MAX`**, and
 ## Integration tests — live network required
 
 `npm test` does **not** run the integration tests. Both `test:integration*`
-scripts need live YouTube access plus a CORS proxy:
+scripts need live YouTube access plus a CORS proxy, and both are **explicitly
+opt-in** — each file exits early unless `RUN_INTEGRATION=1` is set:
 
-- `npm run test:integration` — hits YouTube via the public
+- `RUN_INTEGRATION=1 npm run test:integration` — hits YouTube via the public
   `api.allorigins.win` proxy; may be rate-limited.
-- `npm run test:integration:proxy` — requires `npm run proxy:start` already
-  running in a second terminal.
+- `RUN_INTEGRATION=1 npm run test:integration:proxy` — requires
+  `npm run proxy:start` already running in a second terminal.
 
-Treat them as manual/optional checks in sandboxed or agent environments: an
-offline failure is expected, not a regression.
+CI runs them only in the `integration` job of `ci.yml` (`workflow_dispatch` /
+weekly `schedule` — never on push/PR). Treat them as manual/optional checks
+in sandboxed or agent environments: an offline failure is expected, not a
+regression.

@@ -88,7 +88,7 @@ See [Deployment Guide](./docs/deployment/README.md) for options.
 npm run build          # Build the library
 npm run test           # Run tests
 npm run coverage       # Coverage report (offline)
-npm run test:integration:proxy  # Integration tests with proxy
+RUN_INTEGRATION=1 npm run test:integration:proxy  # Live integration tests (opt-in)
 npm run proxy:start    # Start local CORS proxy
 npm run lint          # Run ESLint
 npm run format        # Format with Prettier
