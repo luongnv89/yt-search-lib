@@ -9,11 +9,11 @@
  */
 export class RateLimiter {
   /**
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {number} [options.max=100] - Requests allowed per window per key.
    * @param {number} [options.windowMs=60000] - Window length in milliseconds.
    * @param {number} [options.maxKeys=10000] - Bound on tracked client keys.
-   * @param {function} [options.now] - Clock injection for tests.
+   * @param {function(): number} [options.now] - Clock injection for tests.
    */
   constructor({ max = 100, windowMs = 60000, maxKeys = 10000, now = () => Date.now() } = {}) {
     this.max = max;

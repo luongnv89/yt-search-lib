@@ -126,14 +126,14 @@ function fetchUrl(targetUrl, body, config, callback) {
  * Builds the CORS proxy HTTP server without listening, so tests and
  * embedders can inject limits, origins, and the allowlist predicate.
  *
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {number} [options.maxRequestBodyBytes]
  * @param {number} [options.maxResponseBodyBytes]
  * @param {number} [options.upstreamTimeoutMs]
  * @param {string[]} [options.allowedOrigins]
  * @param {number} [options.rateLimitMax]
  * @param {number} [options.rateLimitWindowMs]
- * @param {function} [options.isAllowedUrl] - Target allowlist predicate.
+ * @param {function(string): boolean} [options.isAllowedUrl] - Target allowlist predicate.
  * @returns {http.Server}
  */
 export function createProxyServer(options = {}) {
