@@ -30,9 +30,16 @@ the same checks as `format:check` and `lint` below.
 | ------- | ------------ |
 | `npm run build` | `node build.js` — esbuild bundle into `dist/` |
 | `npm test` | `node test.js` — offline unit suite |
+| `npm run coverage` | `node --test --experimental-test-coverage` — offline coverage report over `src/` + `proxy-*.js` |
 | `npm run lint` | `eslint .` |
 | `npm run format:check` | `prettier --check .` (`npm run format` rewrites) |
 | `npm run proxy:start` | `node proxy-server.js` — local CORS proxy on `$PORT` |
+
+Coverage is scoped to `src/**` and `proxy-*.js` — the suite's real surface:
+`dist/` is generated and test files are excluded. It needs the pinned Node 24
+toolchain (`--test-coverage-*` flags require Node ≥22). Baseline at
+introduction (issue #22): **91.96%** lines / **81.58%** branches /
+**92.16%** functions — the M3 reference number for future improvement.
 
 ## Environment variables
 

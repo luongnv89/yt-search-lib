@@ -31,6 +31,7 @@ hooks — `pre-commit` runs `npx prettier --check .` and `npx eslint .`.
 | ------------------------ | --------------------------------------------------- |
 | `npm run build`          | `node build.js` — esbuild bundle into `dist/`       |
 | `npm test`               | `node test.js` — offline unit suite                 |
+| `npm run coverage`       | `node --test --experimental-test-coverage` — offline coverage report |
 | `npm run lint`           | `eslint .`                                          |
 | `npm run format:check`   | `prettier --check .` (`npm run format` rewrites)    |
 | `npm run proxy:start`    | `node proxy-server.js` — local CORS proxy on `$PORT` |

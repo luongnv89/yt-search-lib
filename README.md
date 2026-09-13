@@ -87,6 +87,7 @@ See [Deployment Guide](./docs/deployment/README.md) for options.
 ```bash
 npm run build          # Build the library
 npm run test           # Run tests
+npm run coverage       # Coverage report (offline)
 npm run test:integration:proxy  # Integration tests with proxy
 npm run proxy:start    # Start local CORS proxy
 npm run lint          # Run ESLint

@@ -33,6 +33,7 @@
     "test:integration": "node integration.test.js",
     "proxy:start": "node proxy-server.js",
     "test:integration:proxy": "node integration-with-proxy.test.js",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"proxy-*.js\" test.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
