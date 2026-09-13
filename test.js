@@ -1281,6 +1281,51 @@ describe('index.html demo page', () => {
     );
     assert.ok(!block.includes('window.open'), 'navigation uses the anchor href, not window.open');
   });
+
+  it('never auto-fires a search on page load (F-UX-002)', async () => {
+    const html = await loadHtml();
+    const wiring = html.slice(html.indexOf('searchBtn.addEventListener'));
+    // The Enter-key handler is the only remaining call site — the click
+    // listener passes the function by reference, so no query fires before
+    // the user asks for one.
+    const calls = wiring.match(/performSearch\(\)/g) || [];
+    assert.strictEqual(calls.length, 1);
+    assert.match(wiring, /if \(e\.key === 'Enter'\) performSearch\(\);/);
+    assert.ok(!/searchInput\.value\s*=/.test(wiring), 'no pre-filled query to auto-submit');
+  });
+
+  it('keeps the search button disabled while the query is empty (F-UX-003)', async () => {
+    const html = await loadHtml();
+    assert.match(html, /addEventListener\('input'/, 'button state tracks input events');
+    assert.match(
+      html,
+      /searchBtn\.disabled\s*=\s*searchInput\.value\.trim\(\)\s*===\s*''/,
+      'button stays disabled until the trimmed query is non-empty'
+    );
+    const fn = html.slice(
+      html.indexOf('async function performSearch'),
+      html.indexOf('function renderResults')
+    );
+    assert.match(
+      fn,
+      /if \(!query\)[\s\S]*?showMessage\(/,
+      'an empty submit shows a hint instead of returning silently'
+    );
+  });
+
+  it('locks the input while a search is in flight (F-UX-007)', async () => {
+    const html = await loadHtml();
+    const fn = html.slice(
+      html.indexOf('async function performSearch'),
+      html.indexOf('function renderResults')
+    );
+    assert.match(fn, /searchInput\.disabled\s*=\s*true/, 'input is disabled during the request');
+    assert.match(
+      fn,
+      /searchInput\.disabled\s*=\s*false/,
+      'input is re-enabled when the request settles'
+    );
+  });
 });
 
 // ============================================
