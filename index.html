@@ -167,6 +167,8 @@
         flex-direction: column;
         animation: fadeIn 0.6s ease forwards;
         opacity: 0;
+        color: inherit;
+        text-decoration: none;
       }
 
       @keyframes fadeIn {
@@ -180,10 +182,23 @@
         }
       }
 
-      .video-card:hover {
+      .video-card:hover,
+      .video-card:focus-visible {
         transform: translateY(-10px) scale(1.02);
         border-color: rgba(255, 255, 255, 0.2);
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .video-card:focus-visible {
+        outline: 2px solid var(--accent-color);
+        outline-offset: 4px;
+      }
+
+      .watch-cue {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent-color);
       }
 
       .thumbnail-container {
@@ -384,13 +399,14 @@
 
       function renderResults(videos) {
         const cards = videos.map((video, index) => {
-          const card = document.createElement('div');
+          const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}`;
+          const card = document.createElement('a');
           card.className = 'video-card';
           card.style.animationDelay = `${index * 0.1}s`;
-          card.addEventListener('click', () => {
-            const url = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}`;
-            window.open(url, '_blank');
-          });
+          card.href = url;
+          card.target = '_blank';
+          card.rel = 'noopener';
+          card.setAttribute('aria-label', `Watch ${video.title} on YouTube`);
 
           const thumbnail = document.createElement('div');
           thumbnail.className = 'thumbnail-container';
@@ -418,7 +434,10 @@
           const views = document.createElement('span');
           views.textContent = video.viewCount;
           meta.append(channel, dot, views);
-          info.append(title, meta);
+          const cue = document.createElement('span');
+          cue.className = 'watch-cue';
+          cue.textContent = 'Watch on YouTube ↗';
+          info.append(title, meta, cue);
 
           card.append(thumbnail, info);
           return card;

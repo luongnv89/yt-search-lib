@@ -1260,7 +1260,26 @@ describe('index.html demo page', () => {
     assert.ok(!/onclick\s*=/.test(block), 'renderResults must not emit onclick attributes');
     assert.match(block, /createElement\(/, 'cards are built with createElement');
     assert.match(block, /\.textContent\s*=/, 'response fields are assigned via textContent');
-    assert.match(block, /addEventListener\('click'/, 'navigation is bound via addEventListener');
+  });
+
+  it('renders result cards as labeled links with a destination cue', async () => {
+    const html = await loadHtml();
+    const start = html.indexOf('function renderResults');
+    const end = html.indexOf('searchBtn.addEventListener');
+    assert.ok(start !== -1 && end > start, 'renderResults must exist before the click wiring');
+    const block = html.slice(start, end);
+    assert.match(block, /createElement\('a'\)/, 'cards are real <a> elements');
+    assert.match(block, /\.href\s*=/, 'card carries an href');
+    assert.match(block, /youtube\.com\/watch\?v=/, 'href targets the YouTube watch URL');
+    assert.match(block, /\.target\s*=\s*'_blank'/, 'card opens in a new tab');
+    assert.match(block, /\.rel\s*=\s*'noopener'/, 'new-tab navigation drops the opener');
+    assert.match(block, /aria-label/, 'card is a labeled link');
+    assert.match(block, /Watch on YouTube/, 'card carries a visible destination cue');
+    assert.ok(
+      !/addEventListener\('click'/.test(block),
+      'navigation uses the anchor href, not a click shim'
+    );
+    assert.ok(!block.includes('window.open'), 'navigation uses the anchor href, not window.open');
   });
 });
 
