@@ -27,7 +27,7 @@ Once published to npm, the library can be used directly in the browser via CDNs 
 Include the library in your HTML using a script tag with `type="module"`:
 ```html
 <script type="module">
-  import YouTubeClient from 'https://unpkg.com/sisyphus-yt-search-lib@1.0.0/src/index.js';
+  import YouTubeClient from 'https://unpkg.com/yt-search-lib@1.3.0/dist/index.js';
   
   const client = new YouTubeClient({ proxyUrl: 'YOUR_PROXY_URL' });
   // ... use client
@@ -37,7 +37,7 @@ Include the library in your HTML using a script tag with `type="module"`:
 ### jsDelivr
 ```html
 <script type="module">
-  import YouTubeClient from 'https://cdn.jsdelivr.net/npm/sisyphus-yt-search-lib@1.0.0/src/index.js';
+  import YouTubeClient from 'https://cdn.jsdelivr.net/npm/yt-search-lib@1.3.0/dist/index.js';
   // ... use client
 </script>
 ```

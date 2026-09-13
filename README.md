@@ -8,10 +8,10 @@ A powerful, purely client-side JavaScript library for searching YouTube videos w
 
 - **No API Key Required** - Works with YouTube's InnerTube API
 - **100% Client-Side** - No server code needed (with configurable CORS proxies)
-- **Smart Caching** - LRU cache with `localStorage` persistence
+- **Smart Caching** - LRU cache with `localStorage` persistence in browsers, in-memory fallback in Node.js
 - **TypeScript Support** - Full type definitions included
 - **Zero Dependencies** - Pure JavaScript, no bloat
-- **Works Everywhere** - Browser and Node.js compatible
+- **Works Everywhere** - Browser and Node.js compatible, shipping both ESM (`import`) and CommonJS (`require`) builds
 
 ## 🚀 Quick Start
 
@@ -29,6 +29,8 @@ const client = new YouTubeClient({
 const results = await client.search('lofi hip hop', { limit: 5 });
 results.forEach(video => console.log(video.title));
 ```
+
+CommonJS works too: `const { YouTubeClient } = require('yt-search-lib');`
 
 ## 📚 Documentation
 
@@ -71,6 +73,11 @@ Browsers block direct requests to YouTube. You must use a CORS proxy:
 
 See [Deployment Guide](./docs/deployment/README.md) for options.
 
+**Note:** requests carry YouTube's public InnerTube key as a `?key=` query
+parameter, so the key can appear in proxy and server access logs. This is an
+accepted risk — the key is not a secret (it ships in YouTube's own
+client-side JavaScript). See [SECURITY.md](./SECURITY.md) for details.
+
 ## 💡 Common Use Cases
 
 | Goal | Guide |
@@ -86,12 +93,19 @@ See [Deployment Guide](./docs/deployment/README.md) for options.
 
 ```bash
 npm run build          # Build the library
-npm run test           # Run tests
+npm run test           # Run tests (offline)
 npm run coverage       # Coverage report (offline)
-RUN_INTEGRATION=1 npm run test:integration:proxy  # Live integration tests (opt-in)
 npm run proxy:start    # Start local CORS proxy
-npm run lint          # Run ESLint
-npm run format        # Format with Prettier
+npm run lint           # Run ESLint
+npm run format         # Format with Prettier
+```
+
+Live integration tests require network access to YouTube and are **opt-in** —
+both exit early unless `RUN_INTEGRATION=1` is set:
+
+```bash
+RUN_INTEGRATION=1 npm run test:integration        # via the public api.allorigins.win proxy (may be rate-limited)
+RUN_INTEGRATION=1 npm run test:integration:proxy  # via the local proxy — keep `npm run proxy:start` running first
 ```
 
 See [Development Guide](./docs/development/README.md) for details.

@@ -21,12 +21,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/luongnv89/youtube-search"
+    "url": "https://github.com/luongnv89/yt-search-lib"
   },
   "bugs": {
-    "url": "https://github.com/luongnv89/youtube-search/issues"
+    "url": "https://github.com/luongnv89/yt-search-lib/issues"
   },
-  "homepage": "https://github.com/luongnv89/youtube-search#readme",
+  "homepage": "https://github.com/luongnv89/yt-search-lib#readme",
   "scripts": {
     "build": "node build.js",
     "test": "node test.js",
