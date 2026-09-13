@@ -84,6 +84,14 @@ export interface VideoResult {
   videoCount?: string;
 }
 
+export declare class YtSearchError extends Error {
+  constructor(message?: string, options?: { cause?: unknown });
+}
+
+export declare class NetworkError extends YtSearchError {}
+
+export declare class ParseError extends YtSearchError {}
+
 export declare class YouTubeClient {
   constructor(options?: YouTubeClientOptions);
   search(query: string, options?: { limit?: number; type?: 'video' | 'channel' | 'playlist' | 'all' }): Promise<VideoResult[]>;

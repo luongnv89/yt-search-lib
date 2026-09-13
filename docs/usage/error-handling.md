@@ -82,14 +82,22 @@ try {
 
 ## 🔍 Error Type Detection
 
+The library throws typed errors — `NetworkError` and `ParseError`, both
+subclasses of `YtSearchError` — so detect the failure by type, not by
+matching engine-specific message strings.
+
 ```javascript
+import { NetworkError, ParseError, YtSearchError } from 'yt-search-lib';
+
 async function searchWithErrorHandling(query) {
   try {
     return await client.search(query);
   } catch (error) {
-    if (error.message.includes('Failed to fetch')) {
+    if (error instanceof NetworkError) {
       console.log('Network error - check proxy URL or internet connection');
-    } else if (error.message.includes('timeout')) {
+    } else if (error instanceof ParseError) {
+      console.log('Malformed API response - the InnerTube shape may have changed');
+    } else if (error.message.includes('timed out')) {
       console.log('Request timed out - try again or check network');
     } else if (error.message.includes('429')) {
       console.log('Rate limited - wait before retrying');
@@ -167,9 +175,9 @@ async function robustSearch(query, options = {}) {
     } catch (error) {
       const isLastAttempt = attempt === maxRetries;
 
-      if (error.message === 'timeout') {
+      if (error.message.includes('timed out')) {
         console.error(`Timeout after ${timeoutMs}ms`);
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if (error instanceof NetworkError) {
         console.error('Network error');
       } else {
         console.error(`Error: ${error.message}`);

@@ -115,16 +115,20 @@ const longVideos = results.filter(v => {
 ## ⚙️ Error Handling
 
 ```javascript
+import { NetworkError, ParseError } from 'yt-search-lib';
+
 try {
   const results = await client.search('lofi', { limit: 5 });
   console.log(`Found ${results.length} results`);
 } catch (error) {
-  console.error('Search failed:', error.message);
-
-  if (error.message.includes('Failed to fetch')) {
+  if (error instanceof NetworkError) {
     console.log('Network error - check proxy URL');
-  } else if (error.message.includes('timeout')) {
+  } else if (error instanceof ParseError) {
+    console.log('Malformed API response - the InnerTube shape may have changed');
+  } else if (error.message.includes('timed out')) {
     console.log('Request timed out');
+  } else {
+    console.error('Search failed:', error.message);
   }
 }
 ```

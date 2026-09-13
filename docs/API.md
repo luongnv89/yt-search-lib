@@ -54,9 +54,11 @@ Returns a `Promise<Array<Object>>`. Each object in the array contains:
 
 #### Error Handling
 
-- Throws an `Error` if the `query` parameter is missing.
-- Throws network-related errors if the request fails or if the CORS proxy is unreachable.
-- Errors are logged to the console before being re-thrown.
+- Throws a `YtSearchError` if the `query` parameter is missing.
+- Throws a `NetworkError` (a `YtSearchError`) when the request cannot reach the API — DNS/TLS failure, refused connection, or an unreachable CORS proxy.
+- Throws a `YtSearchError` when the request times out or the API answers with a non-OK status.
+- Throws a `ParseError` (a `YtSearchError`) when the response is not a recognizable search payload — distinguishable from a real empty result, which still resolves to `[]`.
+- All three classes are exported from the package (`import { YtSearchError, NetworkError, ParseError } from 'yt-search-lib'`) and carry the original error on their `cause` property. Errors are re-thrown, never logged to the console.
 
 ---
 
