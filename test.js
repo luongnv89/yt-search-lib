@@ -19,9 +19,6 @@ const localStorageMock = (() => {
     clear: function () {
       store = {};
     },
-    get store() {
-      return store;
-    },
   };
 })();
 
@@ -1035,23 +1032,6 @@ describe('Edge Cases', () => {
       assert.strictEqual(results.length, 1);
       assert.deepStrictEqual(results[0].thumbnails, []);
       assert.strictEqual(results[0].thumbnail_url, '');
-    });
-  });
-
-  describe('Client edge cases', () => {
-    it('should handle extremely long query strings', () => {
-      const longQuery = 'a'.repeat(10000);
-      assert.strictEqual(longQuery.length, 10000);
-    });
-
-    it('should handle special characters in query', () => {
-      const specialQuery = 'test & "quotes" <brackets>';
-      assert.ok(specialQuery.length > 0);
-    });
-
-    it('should handle unicode characters in query', () => {
-      const unicodeQuery = 'テスト 🧪 🚀 ñ';
-      assert.ok(unicodeQuery.length > 0);
     });
   });
 });
