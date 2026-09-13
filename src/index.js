@@ -10,44 +10,80 @@ import { Transport } from './lib/transport.js';
 import { parseSearchResults } from './lib/parser.js';
 
 export { NetworkError, ParseError, YtSearchError } from './lib/errors.js';
+export { LRUCache } from './lib/cache.js';
+export { Transport } from './lib/transport.js';
+export { parseSearchResults } from './lib/parser.js';
+
+/**
+ * The normalized search-result shape produced by the parser.
+ * @typedef {import('./lib/parser.js').VideoResult} VideoResult
+ */
+
+/**
+ * A thumbnail entry in a result's `thumbnail` list.
+ * @typedef {import('./lib/parser.js').Thumbnail} Thumbnail
+ */
+
+/**
+ * Client context override — merged over `DEFAULT_CLIENT_CONTEXT`.
+ * @typedef {object} ClientContext
+ * @property {string} [clientName]
+ * @property {string} [clientVersion]
+ * @property {string} [hl]
+ * @property {string} [gl]
+ * @property {number} [utcOffsetMinutes]
+ */
+
+/**
+ * Options accepted by the {@link YouTubeClient} constructor.
+ * @typedef {object} YouTubeClientOptions
+ * @property {string} [apiKey] - Override default API key.
+ * @property {ClientContext} [clientContext] - Override default client context.
+ * @property {string} [proxyUrl] - URL for CORS proxy.
+ * @property {boolean} [useCache] - Enable/disable caching (default: true).
+ * @property {number} [cacheMaxAge] - Cache max age in ms.
+ * @property {number} [timeout] - Request timeout in ms (default 30000).
+ * @property {typeof fetch} [fetch] - Custom fetch implementation.
+ */
+
+/**
+ * Options accepted by {@link YouTubeClient#search}.
+ * @typedef {object} SearchOptions
+ * @property {number} [limit=5] - Maximum number of results to return.
+ * @property {'video'|'channel'|'playlist'|'all'} [type='video'] - Type of results to return.
+ */
 
 /**
  * Main Client for YouTube InnerTube Search.
  */
 export class YouTubeClient {
   /**
-   * @param {Object} options
-   * @param {string} [options.apiKey] - Override default API key.
-   * @param {Object} [options.clientContext] - Override default client context.
-   * @param {string} [options.proxyUrl] - URL for CORS proxy.
-   * @param {boolean} [options.useCache] - Enable/disable caching (default: true).
-   * @param {number} [options.cacheMaxAge] - Cache max age in ms.
-   * @param {number} [options.timeout] - Request timeout in ms (default 30000).
+   * @param {YouTubeClientOptions} [options]
    */
   constructor(options = {}) {
     this.apiKey = options.apiKey || DEFAULT_API_KEY;
+    /** @type {ClientContext} */
     this.context = { ...DEFAULT_CLIENT_CONTEXT, ...options.clientContext };
 
+    /** @type {Transport} */
     this.transport = new Transport({
       proxyUrl: options.proxyUrl,
       fetch: options.fetch,
       timeout: options.timeout,
     });
 
+    /** @type {LRUCache|null} */
+    this.cache = null;
     if (options.useCache !== false) {
       this.cache = new LRUCache('yt_search_', options.cacheMaxAge);
-    } else {
-      this.cache = null;
     }
   }
 
   /**
    * Search for videos, channels, playlists.
    * @param {string} query - The search query.
-   * @param {Object} [options] - Optional search options.
-   * @param {number} [options.limit=5] - Maximum number of results to return.
-   * @param {string} [options.type='video'] - Type of results ('video', 'channel', 'playlist', or 'all').
-   * @returns {Promise<import('./lib/parser.js').VideoResult[]>}
+   * @param {SearchOptions} [options] - Optional search options.
+   * @returns {Promise<VideoResult[]>}
    */
   async search(query, { limit = 5, type = 'video' } = {}) {
     if (!query) throw new YtSearchError('Query is required');

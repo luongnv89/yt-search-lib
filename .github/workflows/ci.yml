@@ -65,6 +65,13 @@ jobs:
             exit 1
           fi
 
+      - name: Verify generated declarations cover the public exports
+        run: |
+          for name in Transport LRUCache parseSearchResults YouTubeClient YtSearchError; do
+            grep -q "$name" dist/index.d.ts || { echo "dist/index.d.ts missing $name"; exit 1; }
+          done
+          echo "dist/index.d.ts covers all public exports"
+
   test:
     name: Test
     runs-on: ubuntu-latest

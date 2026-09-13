@@ -23,7 +23,7 @@
 export class YtSearchError extends Error {
   /**
    * @param {string} message
-   * @param {Object} [options] - Standard Error options (`cause`, …).
+   * @param {{cause?: unknown}} [options] - Standard Error options (`cause`, …).
    */
   constructor(message, options) {
     super(message, options);
@@ -36,6 +36,10 @@ export class YtSearchError extends Error {
  * DNS/TLS failure, refused connection, or an unreachable CORS proxy.
  */
 export class NetworkError extends YtSearchError {
+  /**
+   * @param {string} message
+   * @param {{cause?: unknown}} [options]
+   */
   constructor(message, options) {
     super(message, options);
     this.name = 'NetworkError';
@@ -44,6 +48,10 @@ export class NetworkError extends YtSearchError {
 
 /** The InnerTube response was not a recognizable search-results payload. */
 export class ParseError extends YtSearchError {
+  /**
+   * @param {string} message
+   * @param {{cause?: unknown}} [options]
+   */
   constructor(message, options) {
     super(message, options);
     this.name = 'ParseError';

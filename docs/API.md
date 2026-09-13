@@ -78,15 +78,43 @@ client.clearCache();
 
 ```javascript
 /**
- * @typedef {Object} VideoResult
+ * @typedef {object} VideoResult
+ * @property {'video'|'channel'|'playlist'} type
  * @property {string} id
- * @property {string} type - 'video', 'playlist', 'channel'
  * @property {string} title
- * @property {string} link
- * @property {string} thumbnail_url
- * @property {string} author
- * @property {string} duration
- * @property {string} publishedAt
- * @property {string} viewCount
+ * @property {Thumbnail[]} thumbnails
+ * @property {string} [link] - Watch URL (videos only).
+ * @property {string} [thumbnail_url] - Largest thumbnail URL (videos only).
+ * @property {string} [author] - Channel name (videos and playlists).
+ * @property {string} [duration] - Formatted length (videos only).
+ * @property {string} [publishedAt] - Relative publish time (videos only).
+ * @property {string} [viewCount] - Formatted view count (videos only).
+ * @property {string[]} [badges] - Badge labels (videos only).
+ * @property {string} [description] - Description snippet (channels only).
+ * @property {string} [subscriberCount] - Formatted subscriber count (channels only).
+ * @property {string} [videoCount] - Formatted video count (channels and playlists).
  */
+```
+
+## Advanced Exports
+
+Beyond `YouTubeClient` and the error classes, the package entry point also
+re-exports the building blocks for advanced use:
+
+```javascript
+import { parseSearchResults, Transport, LRUCache } from 'yt-search-lib';
+```
+
+- `parseSearchResults(response)` — normalize a raw InnerTube search response
+  into `VideoResult[]` (throws `ParseError` on malformed payloads).
+- `Transport` — the fetch/proxy layer used by `YouTubeClient`.
+- `LRUCache` — the storage-backed cache used by `YouTubeClient`.
+
+Published types are generated from the source JSDoc at build time
+(`npm run build` → `dist/index.d.ts`); `VideoResult`, `Thumbnail`,
+`YouTubeClientOptions`, `SearchOptions`, and `ClientContext` are importable
+as types:
+
+```typescript
+import type { VideoResult, YouTubeClientOptions } from 'yt-search-lib';
 ```
