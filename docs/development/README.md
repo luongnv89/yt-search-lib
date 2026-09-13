@@ -107,12 +107,11 @@ npm run format
 yt-search-lib/
 ├── src/
 │   ├── index.js          # Main export
-│   ├── lib/
-│   │   ├── cache.js      # LRU cache implementation
-│   │   ├── constants.js  # API constants
-│   │   ├── parser.js     # Response parsing
-│   │   └── transport.js  # Network layer
-│   └── types.js          # Type definitions
+│   └── lib/
+│       ├── cache.js      # LRU cache implementation
+│       ├── constants.js  # API constants
+│       ├── parser.js     # Response parsing
+│       └── transport.js  # Network layer
 ├── docs/                 # Documentation
 ├── test/                 # Tests
 ├── dist/                 # Built files
