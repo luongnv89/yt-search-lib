@@ -150,6 +150,16 @@
         transform: scale(0.95);
       }
 
+      .search-bar button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .search-bar input:disabled {
+        opacity: 0.55;
+      }
+
       .results-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -363,14 +373,23 @@
       const resultsContainer = document.getElementById('results');
       const loader = document.getElementById('loader');
 
+      // The button stays disabled until there is a query to send.
+      function updateSearchButton() {
+        searchBtn.disabled = searchInput.value.trim() === '';
+      }
+
       async function performSearch() {
         const query = searchInput.value.trim();
-        if (!query) return;
+        if (!query) {
+          showMessage('Type a search query first.', 'var(--text-secondary)');
+          return;
+        }
 
         // UI Feedback
         resultsContainer.replaceChildren();
         loader.style.display = 'block';
         searchBtn.disabled = true;
+        searchInput.disabled = true;
 
         try {
           // Fetch 5 results as requested
@@ -393,7 +412,8 @@
           );
         } finally {
           loader.style.display = 'none';
-          searchBtn.disabled = false;
+          searchInput.disabled = false;
+          updateSearchButton();
         }
       }
 
@@ -465,10 +485,10 @@
       searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') performSearch();
       });
+      searchInput.addEventListener('input', updateSearchButton);
 
-      // Initial landing search
-      searchInput.value = 'Modern Architecture Design';
-      performSearch();
+      // No search fires on load — the first query is always user-initiated.
+      updateSearchButton();
     </script>
   </body>
 </html>
