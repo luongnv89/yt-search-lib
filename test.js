@@ -27,7 +27,6 @@ Object.defineProperty(global, 'localStorage', {
   writable: true,
 });
 
-// Import modules
 const { LRUCache } = await import('./src/lib/cache.js');
 const { Transport } = await import('./src/lib/transport.js');
 const { parseSearchResults } = await import('./src/lib/parser.js');
@@ -714,7 +713,6 @@ describe('YouTubeClient', () => {
 
   describe('search()', () => {
     it('should filter results by type', async () => {
-      // Create a mock transport that returns video results
       const mockFetch = async (_url, _options) => {
         return new Response(
           JSON.stringify({
@@ -772,12 +770,10 @@ describe('YouTubeClient', () => {
         fetch: mockFetch,
       });
 
-      // Test type filtering - only videos
       const videoResults = await client.search('test', { type: 'video' });
       assert.strictEqual(videoResults.length, 2);
       assert.ok(videoResults.every((r) => r.type === 'video'));
 
-      // Test type filtering - only channels
       const channelResults = await client.search('test', { type: 'channel' });
       assert.strictEqual(channelResults.length, 1);
       assert.strictEqual(channelResults[0].type, 'channel');
@@ -893,7 +889,6 @@ describe('YouTubeClient', () => {
 
     it('should do nothing when cache is disabled', () => {
       const client = new YouTubeClient({ useCache: false });
-      // Should not throw
       client.clearCache();
     });
   });

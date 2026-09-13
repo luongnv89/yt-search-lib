@@ -161,7 +161,6 @@ export function createProxyServer(options = {}) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
@@ -191,7 +190,6 @@ export function createProxyServer(options = {}) {
     }
     const pathname = parsedUrl.pathname;
 
-    // Handle proxy endpoint
     if (pathname === '/proxy' || pathname === '/proxy/' || pathname === '') {
       let targetUrl = parsedUrl.searchParams.get('url');
       if (!targetUrl) {
