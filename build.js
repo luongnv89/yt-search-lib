@@ -24,7 +24,6 @@ async function buildPackage() {
     banner: {
       js: `// yt-search-lib v${packageJson.version}\n// License: MIT\n`,
     },
-    outdir: undefined, // Use outfile instead
   });
 
   // Build CJS bundle — backs the `require` export condition and `main`.
