@@ -59,11 +59,12 @@ export class Transport {
     } catch (error) {
       // Enhance error message
       if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+        throw new Error(`Request timed out after ${this.timeoutMs}ms`, { cause: error });
       }
       if (error.message.includes('Failed to fetch')) {
         throw new Error(
-          'Network error: Failed to connect. Check your internet connection or proxy settings.'
+          'Network error: Failed to connect. Check your internet connection or proxy settings.',
+          { cause: error }
         );
       }
       throw error;
