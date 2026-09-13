@@ -62,7 +62,7 @@ Returns a `Promise<Array<Object>>`. Each object in the array contains:
 
 ### `clearCache()`
 
-Clears all stored search results from the browser's `localStorage` within the library's namespace.
+Clears all stored search results within the library's namespace — from `localStorage` in browsers, or from the in-memory fallback store elsewhere (e.g. Node.js).
 
 ```javascript
 client.clearCache();

@@ -22,7 +22,7 @@ YouTube's InnerTube API returns highly nested and complex JSON structures. The P
 
 ### 4. `Cache` (Persistence Layer)
 A lightweight LRU (Least Recently Used) cache implementation.
-- **LocalStorage**: Persists search results in the browser's `localStorage`.
+- **LocalStorage**: Persists search results in the browser's `localStorage`, falling back to an in-memory store where Web Storage is unavailable (e.g. Node.js).
 - **Expiration**: Automatically invalidates entries older than the configured `maxAge`.
 - **Capacity Management**: Evicts oldest entries when the cache reaches its limit to save space.
 
