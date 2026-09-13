@@ -1326,6 +1326,36 @@ describe('index.html demo page', () => {
       'input is re-enabled when the request settles'
     );
   });
+
+  it('keeps API jargon out of user-facing copy (F-UX-004)', async () => {
+    const html = await loadHtml();
+    assert.ok(
+      !/InnerTube|CORS proxy/.test(html),
+      'user-facing copy must not mention InnerTube or the CORS proxy'
+    );
+  });
+
+  it('offers a Retry control that re-runs the failed query (F-UX-005)', async () => {
+    const html = await loadHtml();
+    const catchBlock = html.slice(html.indexOf('} catch (error)'));
+    assert.match(
+      catchBlock,
+      /showMessage\([\s\S]*?,\s*query\s*\)/,
+      'the error path hands the failed query to showMessage for retry'
+    );
+    const fn = html.slice(
+      html.indexOf('function showMessage'),
+      html.indexOf('function renderResults')
+    );
+    assert.match(fn, /createElement\('button'\)/, 'the retry control is a real <button>');
+    assert.match(fn, /textContent\s*=\s*'Retry'/, 'the retry control is labeled Retry');
+    assert.match(
+      fn,
+      /searchInput\.value\s*=\s*retryQuery/,
+      'retry restores the failed query into the input'
+    );
+    assert.match(fn, /performSearch\(\)/, 'retry re-runs the search');
+  });
 });
 
 // ============================================
