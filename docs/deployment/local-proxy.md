@@ -86,7 +86,7 @@ The library uses the query parameter format automatically.
 
 - ✅ **CORS Support**: Echoes allowlisted request origins (never `*`) — see `ALLOWED_ORIGINS`
 - ✅ **Rate Limiting**: Basic per-client request limit (`RATE_LIMIT_MAX` per `RATE_LIMIT_WINDOW_MS`)
-- ✅ **Bounded Bodies**: 1 MB caps on request and upstream-response bodies (413/502)
+- ✅ **Bounded Bodies**: 1 MB cap on request bodies, 8 MB cap on upstream responses (413/502)
 - ✅ **Allowed Hosts**: Only proxies requests to YouTube-related domains (security feature)
 - ✅ **User-Agent**: Includes a browser-like User-Agent header to avoid blocking
 - ✅ **POST Requests**: Properly forwards JSON POST bodies

@@ -38,8 +38,9 @@ hooks — `pre-commit` runs `npx prettier --check .` and `npx eslint .`.
 
 ## Environment variables
 
-`.env.example` lists several variables; the code reads **`PORT`** plus the
-proxy hardening keys **`ALLOWED_ORIGINS`**, **`RATE_LIMIT_MAX`**, and
+`.env.example` lists several variables; the code reads **`PORT`**, **`HOST`**
+(loopback bind for TLS-terminating fronting proxies) plus the proxy hardening
+keys **`ALLOWED_ORIGINS`**, **`RATE_LIMIT_MAX`**, and
 **`RATE_LIMIT_WINDOW_MS`** (all in `proxy-server.js`). `YOUTUBE_PROXY_URL`,
 `NODE_ENV`, and the rest remain dead configuration — safe to leave unset.
 
