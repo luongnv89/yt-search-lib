@@ -27,17 +27,17 @@ const client = new YouTubeClient({
 
 **Possible Causes**:
 1.  **Proxy Issues**: The proxy might be stripping headers or failing to forward the request correctly. Check the "Network" tab in DevTools to see the proxy's response.
-2.  **InnerTube Structure Change**: YouTube frequently updates its internal JSON structure. If `src/lib/parser.js` can no longer find the data at the expected paths, it will return an empty array.
+2.  **InnerTube Structure Change**: YouTube frequently updates its internal JSON structure. If `src/lib/parser.js` can no longer find the data at the expected paths, the search rejects with a `ParseError` — so a shape change surfaces as an error, not as a silent empty result.
 3.  **Rate Limiting**: If using a public proxy, you might be rate-limited by YouTube or the proxy provider.
 
 **Debugging**:
 - Enable verbose logging in `src/lib/transport.js` to see the raw response from the proxy.
 - Check if the response contains a `contents` field. If the structure has changed, you may need to update the selectors in `parseSearchResults` within `src/lib/parser.js`.
 
-## 3. Network Error: Failed to fetch
+## 3. Network Error (`NetworkError`)
 
 **Symptoms**:
-- Error message: `Network error: Failed to connect. Check your internet connection or proxy settings.`
+- The search rejects with a `NetworkError`: `Network error: unable to reach the API. Check your internet connection or proxy settings.`
 
 **Solution**:
 - Verify your internet connection.

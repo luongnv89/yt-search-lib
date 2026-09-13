@@ -5,6 +5,8 @@
  * @module parser
  */
 
+import { ParseError } from './errors.js';
+
 /**
  * @typedef {Object} Thumbnail
  * @property {string} url
@@ -104,18 +106,23 @@ function parsePlaylistRenderer(item) {
  * Main parser function for search response.
  * @param {Object} response - Raw JSON response from InnerTube.
  * @returns {VideoResult[]}
+ * @throws {ParseError} When the response is not a recognizable search payload.
+ *   A malformed response is surfaced as a typed error so it stays
+ *   distinguishable from a real empty result set (`[]`).
  */
 export function parseSearchResults(response) {
   const results = [];
 
   try {
     const contents =
-      response.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
+      response?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
         ?.contents;
 
-    if (!contents) {
-      // Sometimes the structure might be different (e.g. continuations), but for search it's usually this.
-      return [];
+    if (!Array.isArray(contents)) {
+      // A search response always carries the section-list contents array,
+      // even when it holds no items. A payload without it is malformed —
+      // surface that instead of masquerading as an empty result set.
+      throw new ParseError('Malformed search response: missing sectionListRenderer contents');
     }
 
     for (const section of contents) {
@@ -137,7 +144,10 @@ export function parseSearchResults(response) {
       }
     }
   } catch (e) {
-    console.error('Error parsing search results:', e);
+    // A mid-parse failure is a malformed payload too — surface it as a typed
+    // error rather than returning silently truncated results.
+    if (e instanceof ParseError) throw e;
+    throw new ParseError('Failed to parse search results', { cause: e });
   }
 
   return results;

@@ -6,7 +6,7 @@ Build a YouTube search API with Express.js.
 
 ```javascript
 import express from 'express';
-import { YouTubeClient } from 'yt-search-lib';
+import { YouTubeClient, NetworkError } from 'yt-search-lib';
 
 const app = express();
 const client = new YouTubeClient({
@@ -97,11 +97,11 @@ app.get('/api/all', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
 
-  if (err.message.includes('timeout')) {
+  if (err.message.includes('timed out')) {
     return res.status(504).json({ error: 'Request timeout' });
   }
 
-  if (err.message.includes('Failed to fetch')) {
+  if (err instanceof NetworkError) {
     return res.status(502).json({ error: 'Bad gateway' });
   }
 

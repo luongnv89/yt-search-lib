@@ -5,6 +5,8 @@
  * @module transport
  */
 
+import { NetworkError, YtSearchError } from './errors.js';
+
 /** Requests are aborted after this when no timeout is configured (F-BUG-005). */
 const DEFAULT_TIMEOUT_MS = 30000;
 
@@ -33,9 +35,9 @@ export class Transport {
   async post(url, body) {
     const targetUrl = this.proxyUrl ? `${this.proxyUrl}${url}` : url;
 
-    // Some proxies require the target URL to be encoded, others don't.
-    // Standard CORS proxies usually take the full URL as path.
-    // If the proxy simply forwards, we might need to handle headers carefully.
+    // Proxy behavior: when proxyUrl is set, the full target URL is appended
+    // verbatim — standard CORS proxies take the target as the path suffix.
+    // Request headers are passed through unchanged.
 
     const requestHeaders = {
       'Content-Type': 'application/json',
@@ -52,18 +54,23 @@ export class Transport {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Request failed: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new YtSearchError(
+          `Request failed: ${response.status} ${response.statusText} - ${errorText}`
+        );
       }
 
       return await response.json();
     } catch (error) {
-      // Enhance error message
+      // Normalize transport-level failures into typed errors.
       if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        throw new Error(`Request timed out after ${this.timeoutMs}ms`, { cause: error });
+        throw new YtSearchError(`Request timed out after ${this.timeoutMs}ms`, { cause: error });
       }
-      if (error.message.includes('Failed to fetch')) {
-        throw new Error(
-          'Network error: Failed to connect. Check your internet connection or proxy settings.',
+      // fetch() rejects network failures with a TypeError on every engine —
+      // Chromium, Firefox, WebKit and Node/undici alike — so detect the
+      // failure by error type/name, never by an engine-specific message.
+      if (error instanceof TypeError || error.name === 'TypeError') {
+        throw new NetworkError(
+          'Network error: unable to reach the API. Check your internet connection or proxy settings.',
           { cause: error }
         );
       }
